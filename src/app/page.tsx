@@ -14,6 +14,7 @@ import {
   HeartPulse,
   LayoutDashboard,
   ListFilter,
+  LogOut,
   Menu,
   Plus,
   Search,
@@ -26,12 +27,16 @@ import {
   Zap,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import type { User } from "@supabase/supabase-js";
+import { AuthForm } from "@/components/auth-form";
 import { GoalRow } from "@/components/dashboard/goal-row";
 import { PageHeading } from "@/components/dashboard/page-heading";
 import { SettingRow } from "@/components/dashboard/setting-row";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { WorkoutList } from "@/components/dashboard/workout-list";
-import type { Workout } from "@/lib/types/workout";
+import type { NewWorkout, Workout } from "@/lib/types/workout";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { insertWorkouts, listWorkouts, removeWorkout } from "@/lib/supabase/workouts";
 
 type View = "Overview" | "Workouts" | "Training plans" | "Progress" | "Settings";
 
@@ -42,14 +47,6 @@ const dateOffset = (days: number) => {
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
 };
-const seedWorkouts: Workout[] = [
-  { id: 6, title: "Upper body strength", category: "Strength", duration: 52, volume: 8420, date: todayISO() },
-  { id: 5, title: "Tempo run", category: "Running", duration: 38, volume: 0, date: dateOffset(-1) },
-  { id: 4, title: "Lower body power", category: "Strength", duration: 61, volume: 11250, date: dateOffset(-2) },
-  { id: 3, title: "Mobility & recovery", category: "Mobility", duration: 24, volume: 0, date: dateOffset(-3) },
-  { id: 2, title: "Pull day", category: "Strength", duration: 47, volume: 7350, date: dateOffset(-5) },
-  { id: 1, title: "Easy morning run", category: "Running", duration: 31, volume: 0, date: dateOffset(-6) },
-];
 const weeklyActivity = [
   { day: "Mon", minutes: 38 },
   { day: "Tue", minutes: 55 },
@@ -87,9 +84,33 @@ const greeting = () => {
   return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 };
 
+function parseLegacyWorkouts(saved: string): NewWorkout[] {
+  const parsed: unknown = JSON.parse(saved);
+  if (!Array.isArray(parsed)) throw new Error("Saved workouts are not a list.");
+
+  return parsed.map((entry) => {
+    if (!entry || typeof entry !== "object") throw new Error("Saved workout is invalid.");
+    const workout = entry as Record<string, unknown>;
+    const categories = ["Strength", "Running", "Mobility", "Cardio"];
+    if (
+      typeof workout.title !== "string" || !workout.title.trim() || workout.title.length > 80 ||
+      typeof workout.category !== "string" || !categories.includes(workout.category) ||
+      typeof workout.duration !== "number" || workout.duration < 1 || workout.duration > 600 ||
+      typeof workout.volume !== "number" || workout.volume < 0 || workout.volume > 100000 ||
+      typeof workout.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(workout.date)
+    ) throw new Error("Saved workout is invalid.");
+    return { title: workout.title.trim(), category: workout.category, duration: workout.duration, volume: workout.volume, date: workout.date };
+  });
+}
+
 export default function Home() {
   const [view, setView] = useState<View>("Overview");
-  const [workouts, setWorkouts] = useState<Workout[]>(seedWorkouts);
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [workoutsLoading, setWorkoutsLoading] = useState(false);
+  const [savingWorkout, setSavingWorkout] = useState(false);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All types");
   const [modalOpen, setModalOpen] = useState(false);
@@ -101,13 +122,59 @@ export default function Home() {
   const [period, setPeriod] = useState("This week");
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved) setWorkouts(JSON.parse(saved) as Workout[]);
-    } catch {
-      setToast("Saved sessions could not be loaded on this device.");
+    if (!isSupabaseConfigured()) {
+      setAuthLoading(false);
+      return;
     }
+
+    const client = createClient();
+    setSupabase(client);
+    const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+    return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!supabase || !user) {
+      setWorkouts([]);
+      setWorkoutsLoading(false);
+      return;
+    }
+    const client = supabase;
+    const currentUserId = user.id;
+
+    let active = true;
+    setWorkoutsLoading(true);
+    async function loadWorkouts() {
+      try {
+        let loaded = await listWorkouts(client, currentUserId);
+        if (!loaded.length) {
+          try {
+            const saved = window.localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+              const legacy = parseLegacyWorkouts(saved);
+              if (legacy.length) {
+                loaded = await insertWorkouts(client, currentUserId, legacy);
+                window.localStorage.removeItem(STORAGE_KEY);
+              }
+            }
+          } catch {
+            if (active) setToast("Saved browser workouts could not be synced. They remain on this device.");
+          }
+        }
+        if (active) setWorkouts(loaded);
+      } catch {
+        if (active) setToast("Your workouts could not be loaded. Check your connection and try again.");
+      } finally {
+        if (active) setWorkoutsLoading(false);
+      }
+    }
+
+    void loadWorkouts();
+    return () => { active = false; };
+  }, [supabase, user?.id]);
 
   useEffect(() => {
     if (!toast) return;
@@ -134,6 +201,9 @@ export default function Home() {
   const todaysVolume = unit === "kg" ? Math.round(totalVolume / 2.205).toLocaleString() : totalVolume.toLocaleString();
   const maxBar = period === "This week" ? 70 : 80;
   const dateLabel = new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date());
+  const metadataName = user?.user_metadata?.display_name;
+  const displayName = typeof metadataName === "string" && metadataName.trim() ? metadataName.trim() : user?.email?.split("@")[0] ?? "there";
+  const initials = displayName.split(/[.\s_-]+/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join("") || "FB";
 
   function switchView(nextView: View) {
     setView(nextView);
@@ -141,53 +211,62 @@ export default function Home() {
     if (nextView !== "Workouts") setSearch("");
   }
 
-  function saveWorkout(event: FormEvent<HTMLFormElement>) {
+  async function saveWorkout(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!supabase || !user) return;
     const data = new FormData(event.currentTarget);
     const title = String(data.get("title") || "").trim();
     if (!title) return;
-    const workout: Workout = {
-      id: Date.now(),
+    const workout: NewWorkout = {
       title,
       category: String(data.get("category")),
       duration: Number(data.get("duration")) || 0,
       volume: Number(data.get("volume")) || 0,
       date: todayISO(),
     };
-    const updated = [workout, ...workouts];
-    setWorkouts(updated);
+    setSavingWorkout(true);
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      const [saved] = await insertWorkouts(supabase, user.id, [workout]);
+      setWorkouts((current) => [saved, ...current]);
       setToast("Workout added to your training log.");
     } catch {
-      setToast("Workout added for this session, but could not be saved on this device.");
+      setToast("Workout could not be saved. Check your connection and try again.");
+      return;
+    } finally {
+      setSavingWorkout(false);
     }
     setModalOpen(false);
     setView("Overview");
   }
 
-  function addTemplate(title: string, workoutCategory: string, duration: number) {
-    const workout = { id: Date.now(), title, category: workoutCategory, duration, volume: 0, date: todayISO() };
-    const updated = [workout, ...workouts];
-    setWorkouts(updated);
+  async function addTemplate(title: string, workoutCategory: string, duration: number) {
+    if (!supabase || !user) return;
+    const workout: NewWorkout = { title, category: workoutCategory, duration, volume: 0, date: todayISO() };
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      const [saved] = await insertWorkouts(supabase, user.id, [workout]);
+      setWorkouts((current) => [saved, ...current]);
       setToast(`${title} added to your training log.`);
     } catch {
-      setToast(`${title} added for this session.`);
+      setToast(`${title} could not be saved. Check your connection and try again.`);
     }
     setView("Overview");
   }
 
-  function deleteWorkout(id: number) {
-    const updated = workouts.filter((workout) => workout.id !== id);
-    setWorkouts(updated);
+  async function deleteWorkout(id: string) {
+    if (!supabase || !user) return;
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      await removeWorkout(supabase, user.id, id);
+      setWorkouts((current) => current.filter((workout) => workout.id !== id));
       setToast("Workout removed from your log.");
     } catch {
-      setToast("Workout removed for this session.");
+      setToast("Workout could not be removed. Check your connection and try again.");
     }
+  }
+
+  async function signOut() {
+    if (!supabase) return;
+    const { error } = await supabase.auth.signOut();
+    if (error) setToast("Could not sign out. Please try again.");
   }
 
   const openLog = (title = "") => {
@@ -197,6 +276,19 @@ export default function Home() {
       if (input) input.value = title;
     }, 0);
   };
+
+  if (authLoading) return <main className="auth-screen"><p className="auth-description">Restoring your session...</p></main>;
+  if (!isSupabaseConfigured()) return (
+    <main className="auth-screen">
+      <section className="auth-card auth-config" aria-labelledby="setup-title">
+        <div className="auth-brand"><span className="brand-mark"><Activity size={18} strokeWidth={2.5} /></span><span className="brand-name">fitbuzz<span>.</span></span></div>
+        <p className="eyebrow"><span className="eyebrow-mark" />Backend setup</p>
+        <h1 id="setup-title">Connect your Supabase project</h1>
+        <p className="auth-description">Add your project URL and anon key to <code>.env.local</code>, then apply the SQL migration in <code>supabase/migrations</code>.</p>
+      </section>
+    </main>
+  );
+  if (!user) return <AuthForm />;
 
   return (
     <div className="app-shell">
@@ -223,8 +315,8 @@ export default function Home() {
           <button className="coach-link" onClick={() => switchView("Training plans")}>Explore your plans <ChevronRight size={13} /></button>
         </section>
         <div className="profile">
-          <span className="avatar" aria-hidden="true">JD</span>
-          <div className="profile-copy"><div className="profile-name">Jordan Davis</div><div className="profile-plan">Free member</div></div>
+          <span className="avatar" aria-hidden="true">{initials}</span>
+          <div className="profile-copy"><div className="profile-name">{displayName}</div><div className="profile-plan">{user.email}</div></div>
           <ChevronDown className="profile-more" size={15} />
         </div>
       </aside>
@@ -247,7 +339,7 @@ export default function Home() {
         <div className="content">
           {view === "Overview" && (
             <>
-              <PageHeading eyebrow={dateLabel} title={`${greeting()}, Jordan`} description="You showed up for yourself today. Here’s your week at a glance." action={<button className="primary-button" onClick={() => openLog()}><Plus size={15} strokeWidth={2.5} /> Log workout</button>} />
+                <PageHeading eyebrow={dateLabel} title={`${greeting()}, ${displayName}`} description="You showed up for yourself today. Here’s your week at a glance." action={<button className="primary-button" onClick={() => openLog()}><Plus size={15} strokeWidth={2.5} /> Log workout</button>} />
 
               <section className="stats-grid" aria-label="Weekly workout statistics">
                 <StatCard label="Workouts this week" value={String(workouts.filter((workout) => workout.date >= dateOffset(-6)).length)} unit="sessions" change="2" detail="vs last week" icon={Dumbbell} />
@@ -287,7 +379,7 @@ export default function Home() {
 
                 <section className="panel recent-panel" aria-labelledby="recent-title">
                   <div className="panel-heading"><div><h2 className="panel-title" id="recent-title">Recent workouts</h2><p className="panel-note">Your effort adds up.</p></div><button className="text-button" onClick={() => switchView("Workouts")}>View all <ArrowRight size={13} /></button></div>
-                  <WorkoutList workouts={workouts.slice(0, 4)} unit={unit} compact />
+                  {workoutsLoading ? <div className="empty-state">Loading workouts...</div> : <WorkoutList workouts={workouts.slice(0, 4)} unit={unit} compact emptyMessage="No workouts yet. Your recent sessions will show here." />}
                 </section>
               </div>
             </>
@@ -300,7 +392,7 @@ export default function Home() {
               <div className="template-grid">{templates.map(({ title, detail, duration, category: workoutCategory, icon: Icon }) => <article className="template-card" key={title}><div className="template-card-head"><span className="template-icon"><Icon size={17} /></span><span className="template-length">{duration} min</span></div><h3>{title}</h3><p>{detail}</p><button className="template-log" onClick={() => addTemplate(title, workoutCategory, duration)}>Add session <ArrowRight size={12} /></button></article>)}</div>
               <section className="panel workouts-full">
                 <div className="panel-heading"><div><h2 className="panel-title">All sessions</h2><p className="panel-note">{filteredWorkouts.length} {filteredWorkouts.length === 1 ? "workout" : "workouts"} in your log</p></div><div className="workout-filters"><ListFilter size={14} color="#858c81" /><select className="filter-select" aria-label="Filter workout type" value={category} onChange={(event) => setCategory(event.target.value)}><option>All types</option><option>Strength</option><option>Running</option><option>Mobility</option><option>Cardio</option></select></div></div>
-                <WorkoutList workouts={filteredWorkouts} unit={unit} onDelete={deleteWorkout} />
+                {workoutsLoading ? <div className="empty-state">Loading workouts...</div> : <WorkoutList workouts={filteredWorkouts} unit={unit} onDelete={deleteWorkout} emptyMessage={workouts.length ? "No workouts match that search. Try another name or type." : "Your training log is empty. Log or add a session to get started."} />}
               </section>
             </>
           )}
@@ -332,7 +424,7 @@ export default function Home() {
                 <SettingRow title="Units" help="Choose how your training numbers are shown."><div className="unit-toggle"><button className={`unit-choice${unit === "lb" ? " active" : ""}`} onClick={() => setUnit("lb")}>lb</button><button className={`unit-choice${unit === "kg" ? " active" : ""}`} onClick={() => setUnit("kg")}>kg</button></div></SettingRow>
                 <SettingRow title="Workout reminders" help="A gentle nudge for your planned training days."><button className={`toggle${reminders ? " on" : ""}`} aria-label="Toggle workout reminders" aria-pressed={reminders} onClick={() => setReminders(!reminders)} /></SettingRow>
                 <SettingRow title="Weekly progress recap" help="A short summary of your training each Sunday."><button className={`toggle${weeklyReport ? " on" : ""}`} aria-label="Toggle weekly progress recap" aria-pressed={weeklyReport} onClick={() => setWeeklyReport(!weeklyReport)} /></SettingRow>
-                <SettingRow title="Your account" help="Jordan Davis · jordan@example.com"><button className="secondary-button" onClick={() => setToast("Account settings are available in your profile.")}>Manage <ArrowRight size={13} /></button></SettingRow>
+                <SettingRow title="Your account" help={user.email ?? displayName}><button className="secondary-button" onClick={() => void signOut()}><LogOut size={13} /> Sign out</button></SettingRow>
               </section>
             </>
           )}
@@ -349,7 +441,7 @@ export default function Home() {
               <label className="form-field"><span className="form-label">Duration (minutes)</span><input className="form-input" name="duration" type="number" min="1" max="600" defaultValue="45" required /></label>
               <label className="form-field full"><span className="form-label">Weight moved ({unit}) · optional</span><input className="form-input" name="volume" type="number" min="0" max="100000" placeholder="e.g. 8400" /></label>
             </div>
-            <div className="modal-actions"><button type="button" className="cancel-button" onClick={() => setModalOpen(false)}>Cancel</button><button className="primary-button" type="submit"><Check size={14} /> Save workout</button></div>
+            <div className="modal-actions"><button type="button" className="cancel-button" onClick={() => setModalOpen(false)}>Cancel</button><button className="primary-button" type="submit" disabled={savingWorkout}>{savingWorkout ? "Saving..." : <><Check size={14} /> Save workout</>}</button></div>
           </form>
         </section>
       </div>}

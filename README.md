@@ -34,6 +34,16 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### Configure Supabase
+
+1. Create a Supabase project.
+2. Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from the project API settings.
+3. Apply `supabase/migrations/20260926000000_create_workouts.sql` in the Supabase SQL Editor.
+4. Set the Supabase Auth site URL to `http://localhost:3000` and allow that URL as a redirect for email confirmation.
+5. Restart the development server and sign up with an email address.
+
+The migration creates the `workouts` table and row-level security policies. Do not put a Supabase service-role key in a `NEXT_PUBLIC_` variable.
+
 ## Available Scripts
 
 | Command | Description |
@@ -50,8 +60,9 @@ src/
   app/
     globals.css                 Global styles
     layout.tsx                  Root layout and page metadata
-    page.tsx                    Dashboard views and workout interactions
+    page.tsx                    Authenticated dashboard and workout interactions
   components/
+    auth-form.tsx               Email/password sign-in and registration
     dashboard/
       goal-row.tsx              Reusable progress goal row
       page-heading.tsx          Reusable page heading
@@ -59,13 +70,21 @@ src/
       stat-card.tsx             Reusable statistic card
       workout-list.tsx          Reusable workout list
   lib/
+    supabase/
+      client.ts                 Browser Supabase client
+      database.types.ts         Database row and mutation types
+      server.ts                 Server Supabase client
+      workouts.ts               User-scoped workout queries
     types/
       workout.ts                Shared workout type
+  proxy.ts                      Refreshes Supabase auth cookies
+supabase/
+  migrations/                   Database schema and RLS policies
 ```
 
 ## Data and Authentication
 
-Workout entries are stored in the current browser using `localStorage`; they are not synchronized between devices or users. Training plans and some progress values are sample dashboard content. Authentication and a remote database are not currently configured, and the app does not require environment variables to run locally.
+Email/password authentication and workout storage use Supabase. Workout queries are scoped to the signed-in user, with row-level security enforced by the database migration. Previously saved workouts in `localStorage` are imported when the signed-in account has no cloud workouts; the local copy is removed only after a successful import. Training plans, progress milestones, and settings are still sample or browser-only content and are not yet stored in Supabase.
 
 ## Validation
 

@@ -5,7 +5,8 @@ type WorkoutListProps = {
   workouts: Workout[];
   unit: "kg" | "lb";
   compact?: boolean;
-  onDelete?: (id: number) => void;
+  onDelete?: (id: string) => void;
+  emptyMessage?: string;
 };
 
 function formatDate(value: string) {
@@ -18,8 +19,8 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(date);
 }
 
-export function WorkoutList({ workouts, unit, compact = false, onDelete }: WorkoutListProps) {
-  if (!workouts.length) return <div className="empty-state">No workouts match that search. Try another name or type.</div>;
+export function WorkoutList({ workouts, unit, compact = false, onDelete, emptyMessage = "No workouts match that search. Try another name or type." }: WorkoutListProps) {
+  if (!workouts.length) return <div className="empty-state">{emptyMessage}</div>;
 
   return (
     <div className={`workout-list${compact ? "" : " workout-list-full"}`}>
