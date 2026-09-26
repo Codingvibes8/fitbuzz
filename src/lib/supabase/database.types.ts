@@ -1,6 +1,41 @@
+import type { SubscriptionTier } from "@/lib/types/subscription";
+
 export type Database = {
   public: {
     Tables: {
+      subscriptions: {
+        Row: {
+          user_id: string;
+          tier: SubscriptionTier;
+          status: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          current_period_end: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          tier?: SubscriptionTier;
+          status?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          current_period_end?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          tier?: SubscriptionTier;
+          status?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          current_period_end?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       workouts: {
         Row: {
           id: string;

@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronRight,
   Clock3,
+  CreditCard,
   Dumbbell,
   Flame,
   HeartPulse,
@@ -34,11 +35,12 @@ import { PageHeading } from "@/components/dashboard/page-heading";
 import { SettingRow } from "@/components/dashboard/setting-row";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { WorkoutList } from "@/components/dashboard/workout-list";
+import type { SubscriptionSummary } from "@/lib/types/subscription";
 import type { NewWorkout, Workout } from "@/lib/types/workout";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { insertWorkouts, listWorkouts, removeWorkout } from "@/lib/supabase/workouts";
 
-type View = "Overview" | "Workouts" | "Training plans" | "Progress" | "Settings";
+type View = "Overview" | "Workouts" | "Training plans" | "Progress" | "Membership" | "Settings";
 
 const STORAGE_KEY = "fitflow-workouts-v1";
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -71,8 +73,15 @@ const navItems: { label: View; icon: typeof LayoutDashboard }[] = [
   { label: "Workouts", icon: Dumbbell },
   { label: "Training plans", icon: CalendarDays },
   { label: "Progress", icon: TrendingUp },
+  { label: "Membership", icon: CreditCard },
   { label: "Settings", icon: Settings2 },
 ];
+const membershipPlans = [
+  { tier: "free", name: "Free", price: "£0", description: "The essentials to build a lasting training habit.", features: ["Core workout tracking", "100 API calls per month", "1 custom training plan"] },
+  { tier: "pro", name: "Pro", price: "£9.99", description: "More guidance and room to grow your routine.", features: ["AI-powered features", "5,000 API calls per month", "Unlimited custom plans", "Advanced analytics"] },
+  { tier: "elite", name: "Elite", price: "£24.99", description: "A deeper level of coaching and developer access.", features: ["24/7 AI coach", "50,000 API calls per month", "API access for developers", "Priority support"] },
+] as const;
+const freeSubscription: SubscriptionSummary = { tier: "free", status: "free", stripe_subscription_id: null, current_period_end: null };
 const formatDate = (value: string) => {
   const date = new Date(`${value}T12:00:00`);
   if (value === todayISO()) return "Today";
@@ -120,6 +129,8 @@ export default function Home() {
   const [reminders, setReminders] = useState(true);
   const [weeklyReport, setWeeklyReport] = useState(false);
   const [period, setPeriod] = useState("This week");
+  const [subscription, setSubscription] = useState<SubscriptionSummary>(freeSubscription);
+  const [billingAction, setBillingAction] = useState<"pro" | "elite" | "portal" | null>(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -177,6 +188,63 @@ export default function Home() {
   }, [supabase, user?.id]);
 
   useEffect(() => {
+    if (!supabase || !user) {
+      setSubscription(freeSubscription);
+      return;
+    }
+    const client = supabase;
+    let active = true;
+    const loadSubscription = async () => {
+      const { data, error } = await client.from("subscriptions")
+        .select("tier,status,stripe_subscription_id,current_period_end")
+        .maybeSingle();
+      if (error) throw error;
+      return data ?? freeSubscription;
+    };
+
+    async function refreshMembership() {
+      const params = new URLSearchParams(window.location.search);
+      const checkoutResult = params.get("checkout");
+      const billingReturned = params.get("billing") === "return";
+      if (checkoutResult || billingReturned) {
+        setView("Membership");
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+
+      if (checkoutResult === "success") {
+        setToast("Payment received. Confirming your membership...");
+        for (let attempt = 0; attempt < 12 && active; attempt += 1) {
+          try {
+            const latest = await loadSubscription();
+            if (active) setSubscription(latest);
+            if (latest.status === "active" || latest.status === "trialing") {
+              if (active) setToast(`${latest.tier === "pro" ? "Pro" : "Elite"} membership is active.`);
+              return;
+            }
+          } catch {
+            break;
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, 1250));
+        }
+        if (active) setToast("Payment received. Membership confirmation is delayed; refresh this page shortly.");
+        return;
+      }
+
+      try {
+        const latest = await loadSubscription();
+        if (active) setSubscription(latest);
+      } catch {
+        if (active) setToast("Membership details could not be loaded. Check that the billing migration has been applied.");
+      }
+      if (active && checkoutResult === "cancelled") setToast("Checkout cancelled. No payment was taken.");
+      if (active && billingReturned) setToast("Billing settings updated.");
+    }
+
+    void refreshMembership();
+    return () => { active = false; };
+  }, [supabase, user?.id]);
+
+  useEffect(() => {
     if (!toast) return;
     const timeout = window.setTimeout(() => setToast(""), 2800);
     return () => window.clearTimeout(timeout);
@@ -204,6 +272,8 @@ export default function Home() {
   const metadataName = user?.user_metadata?.display_name;
   const displayName = typeof metadataName === "string" && metadataName.trim() ? metadataName.trim() : user?.email?.split("@")[0] ?? "there";
   const initials = displayName.split(/[.\s_-]+/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join("") || "FB";
+  const hasManageableSubscription = Boolean(subscription.stripe_subscription_id) && !["canceled", "incomplete_expired"].includes(subscription.status);
+  const currentTier = hasManageableSubscription ? subscription.tier : "free";
 
   function switchView(nextView: View) {
     setView(nextView);
@@ -260,6 +330,42 @@ export default function Home() {
       setToast("Workout removed from your log.");
     } catch {
       setToast("Workout could not be removed. Check your connection and try again.");
+    }
+  }
+
+  async function startCheckout(tier: "pro" | "elite") {
+    setBillingAction(tier);
+    try {
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier }),
+      });
+      const result: { url?: unknown; error?: unknown } = await response.json();
+      if (!response.ok || typeof result.url !== "string") {
+        throw new Error(typeof result.error === "string" ? result.error : "Could not start checkout.");
+      }
+      window.location.assign(result.url);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Could not start checkout. Please try again.");
+    } finally {
+      setBillingAction(null);
+    }
+  }
+
+  async function openBillingPortal() {
+    setBillingAction("portal");
+    try {
+      const response = await fetch("/api/billing-portal", { method: "POST" });
+      const result: { url?: unknown; error?: unknown } = await response.json();
+      if (!response.ok || typeof result.url !== "string") {
+        throw new Error(typeof result.error === "string" ? result.error : "Could not open billing management.");
+      }
+      window.location.assign(result.url);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Could not open billing management. Please try again.");
+    } finally {
+      setBillingAction(null);
     }
   }
 
@@ -414,6 +520,35 @@ export default function Home() {
                 <section className="panel"><div className="panel-heading"><div><h2 className="panel-title">Monthly milestones</h2><p className="panel-note">Small wins worth noticing.</p></div><span className="program-status">September</span></div><div className="goal-list"><GoalRow icon={Dumbbell} title="Training sessions" help="Goal: 16 sessions this month" value="14 / 16" progress="88%" /><GoalRow icon={Clock3} title="Active minutes" help="Goal: 720 minutes this month" value="612 / 720" progress="85%" /><GoalRow icon={Flame} title="Keep the streak alive" help="Goal: 5 days in a row" value="4 / 5 days" progress="80%" /><GoalRow icon={HeartPulse} title="Make time to recover" help="Goal: 4 mobility sessions" value="3 / 4" progress="75%" /></div></section>
                 <section className="streak-panel"><div><div className="streak-top"><span className="streak-title">YOUR CURRENT STREAK</span><span className="streak-fire"><Flame size={17} /></span></div><div className="streak-number">04</div><div className="streak-caption">days of showing up. That’s something.</div></div><div className="streak-days">{["M", "T", "W", "T", "F", "S", "S"].map((day, index) => <div className="streak-day" key={`${day}-${index}`}><span className={`streak-day-dot${index < 4 ? " done" : ""}`}>{index < 4 ? <Check size={11} /> : ""}</span>{day}</div>)}</div></section>
               </div>
+            </>
+          )}
+
+          {view === "Membership" && (
+            <>
+              <PageHeading eyebrow="Plans that move with you" title="Membership" description="Choose the level of support that suits your training." />
+              <div className="membership-notice"><CreditCard size={16} /><p>Monthly plans are billed securely in GBP through Stripe. Your current plan is {currentTier === "pro" ? "Pro" : currentTier === "elite" ? "Elite" : "Free"}.</p></div>
+              <section className="membership-grid" aria-label="Membership plans">
+                {membershipPlans.map((plan) => {
+                  const currentPlan = plan.tier === currentTier;
+                  const actionLabel = currentPlan
+                    ? plan.tier === "free" ? "Current plan" : billingAction === "portal" ? "Opening billing..." : "Manage billing"
+                    : hasManageableSubscription ? "Change plan in billing portal" : billingAction === plan.tier ? "Opening checkout..." : `Choose ${plan.name}`;
+                  return (
+                    <article className={`membership-card${plan.tier === "pro" ? " recommended" : ""}`} key={plan.tier}>
+                      {plan.name === "Pro" && <span className="membership-badge">Most popular</span>}
+                      <div className="membership-card-top"><h2>{plan.name}</h2>{currentPlan && <span className="membership-current">Current plan</span>}</div>
+                      <p className="membership-description">{plan.description}</p>
+                      <p className="membership-price"><strong>{plan.price}</strong><span> / month</span></p>
+                      <ul className="membership-features">{plan.features.map((feature) => <li key={feature}><Check size={14} />{feature}</li>)}</ul>
+                      <button className={currentPlan ? "secondary-button membership-action" : "primary-button membership-action"} disabled={billingAction !== null || (currentPlan && plan.tier === "free")} onClick={() => {
+                        if (hasManageableSubscription) void openBillingPortal();
+                        else if (plan.tier === "free") setToast("You’re already on the Free plan.");
+                        else void startCheckout(plan.tier);
+                      }}>{actionLabel}</button>
+                    </article>
+                  );
+                })}
+              </section>
             </>
           )}
 
