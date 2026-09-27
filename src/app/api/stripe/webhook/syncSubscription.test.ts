@@ -165,7 +165,7 @@ describe("Webhook Event Types", () => {
   });
 
   it("ignores unrelated events", () => {
-    const eventType = "invoice.payment_succeeded";
+    const eventType: string = "invoice.payment_succeeded";
     const shouldSync = eventType.startsWith("customer.subscription.") || 
       (eventType === "checkout.session.completed" && false);
     expect(shouldSync).toBe(false);

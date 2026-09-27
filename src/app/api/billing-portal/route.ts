@@ -27,7 +27,10 @@ export async function POST(request: Request) {
       .select("stripe_customer_id")
       .eq("user_id", user.id)
       .maybeSingle();
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase subscription lookup failed", error);
+      return NextResponse.json({ error: "Billing storage is unavailable. Check the server-side Supabase secret key." }, { status: 503 });
+    }
     if (!subscription?.stripe_customer_id) {
       return NextResponse.json({ error: "No Stripe billing account is linked yet." }, { status: 404 });
     }

@@ -41,7 +41,10 @@ export async function POST(request: Request) {
       .select("status, stripe_customer_id, stripe_subscription_id")
       .eq("user_id", user.id)
       .maybeSingle();
-    if (subscriptionError) throw subscriptionError;
+    if (subscriptionError) {
+      console.error("Supabase subscription lookup failed", subscriptionError);
+      return NextResponse.json({ error: "Billing storage is unavailable. Check the server-side Supabase secret key." }, { status: 503 });
+    }
 
     if (existing?.stripe_subscription_id && !["canceled", "incomplete_expired"].includes(existing.status)) {
       return NextResponse.json({ error: "Manage your existing subscription from the billing portal." }, { status: 409 });
@@ -67,7 +70,7 @@ export async function POST(request: Request) {
     if (!session.url) throw new Error("Stripe did not return a Checkout URL.");
     return NextResponse.json({ url: session.url });
   } catch (error) {
-    console.error("Unable to create Stripe Checkout session", error);
+    console.error("Stripe Checkout session creation failed", error);
     return NextResponse.json({ error: "Could not start checkout. Please try again." }, { status: 500 });
   }
 }

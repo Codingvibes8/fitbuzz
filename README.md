@@ -43,12 +43,12 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 4. Set the Supabase Auth site URL to `http://localhost:3000` and allow that URL as a redirect for email confirmation.
 5. Restart the development server and sign up with an email address.
 
-The migrations create the workout and subscription tables. Subscription rows are readable only by their owner; only the server-side Stripe webhook can change them. Never put `SUPABASE_SERVICE_ROLE_KEY` or Stripe secrets in a `NEXT_PUBLIC_` variable.
+The migrations create the workout and subscription tables. Subscription rows are readable only by their owner; only the server-side Stripe webhook can change them. Use a Supabase `sb_secret_...` key as `SUPABASE_SECRET_KEY`. Never put this key or Stripe secrets in a `NEXT_PUBLIC_` variable.
 
 ### Configure Stripe billing
 
 1. Create Stripe products with recurring monthly prices of **£9.99 GBP** (Pro) and **£24.99 GBP** (Elite). Put their Price IDs in `STRIPE_PRO_PRICE_ID` and `STRIPE_ELITE_PRICE_ID`; Checkout verifies each price is active and matches the expected GBP amount and interval.
-2. Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, and `APP_URL` in `.env.local`. Use `APP_URL=http://localhost:3000` locally and your HTTPS app origin in production.
+2. Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SECRET_KEY`, and `APP_URL` in `.env.local`. Use `APP_URL=http://localhost:3000` locally and your HTTPS app origin in production.
 3. Add a Stripe webhook endpoint at `${APP_URL}/api/stripe/webhook` for `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, and `customer.subscription.deleted`.
 4. Enable the Stripe Billing Portal and configure its cancellation, payment-method, and plan-switching options for the Pro and Elite prices.
 5. For local webhook testing, run `stripe listen --forward-to localhost:3000/api/stripe/webhook` and use the signing secret it prints as `STRIPE_WEBHOOK_SECRET`.
