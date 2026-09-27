@@ -27,9 +27,30 @@ export function getTierForPriceId(priceId: string): PaidTier | null {
   return null;
 }
 
+const LOCAL_APP_URL = "http://localhost:3000";
+
+/**
+ * Resolves the app's public origin.
+ *
+ * Priority:
+ * 1. `APP_URL` from the environment (local `.env.local` or the hosting provider's env vars).
+ * 2. Vercel's automatically injected deployment URLs (`VERCEL_PROJECT_PRODUCTION_URL`,
+ *    then the per-deployment `VERCEL_URL`) so production works even when `APP_URL` is unset
+ *    in the Vercel dashboard.
+ * 3. `http://localhost:3000` for local development.
+ */
+function resolveAppUrl() {
+  const configured = process.env.APP_URL?.trim();
+  if (configured) return configured;
+
+  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim() || process.env.VERCEL_URL?.trim();
+  if (vercelUrl) return `https://${vercelUrl}`;
+
+  return LOCAL_APP_URL;
+}
+
 export function getAppUrl() {
-  const appUrl = process.env.APP_URL;
-  if (!appUrl) throw new Error("APP_URL is not configured.");
+  const appUrl = resolveAppUrl();
   const parsedUrl = new URL(appUrl);
   if (process.env.NODE_ENV === "production" && parsedUrl.protocol !== "https:") {
     throw new Error("APP_URL must use HTTPS in production.");

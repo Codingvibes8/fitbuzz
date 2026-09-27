@@ -65,17 +65,27 @@ Create a `.env.local` file in the project root with the following variables:
 # Supabase (required for auth & data)
 NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SECRET_KEY=your-service-role-key  # Server-only, for webhooks & admin API
+SUPABASE_SECRET_KEY=your-service-role-key  # Server-only secret — save as "Sensitive" in Vercel
 
 # Stripe (required for billing)
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_SECRET_KEY=sk_test_...           # Server-only secret — save as "Sensitive" in Vercel
+STRIPE_WEBHOOK_SECRET=whsec_...         # Server-only secret — save as "Sensitive" in Vercel
 STRIPE_PRO_PRICE_ID=price_...   # £9.99/month recurring
 STRIPE_ELITE_PRICE_ID=price_... # £24.99/month recurring
 
 # App
-APP_URL=http://localhost:3000   # Use HTTPS in production
+APP_URL=http://localhost:3000   # Local dev. Production: https://fitbuzz-xfab.vercel.app (HTTPS required)
 ```
+
+> **App URL resolution**: `APP_URL` is used for Stripe Checkout/Billing Portal redirects and
+> trusted-origin checks. It is resolved in this order:
+> 1. `APP_URL` (`http://localhost:3000` locally, `https://fitbuzz-xfab.vercel.app` in production)
+> 2. Vercel's auto-injected `VERCEL_PROJECT_PRODUCTION_URL`, then `VERCEL_URL`
+> 3. `http://localhost:3000` fallback
+>
+> So set `APP_URL=http://localhost:3000` in `.env.local` for local work, and set
+> `APP_URL=https://fitbuzz-xfab.vercel.app` in the Vercel dashboard (Settings → Environment Variables)
+> for production. Non-HTTPS values throw in production.
 
 > **Note**: There is no `.env.example` file in the repo. Create `.env.local` manually using the template above.
 
@@ -86,8 +96,8 @@ APP_URL=http://localhost:3000   # Use HTTPS in production
    - `supabase/migrations/20260926000000_create_workouts.sql`
    - `supabase/migrations/20260927000000_create_subscriptions.sql`
 3. **Configure Auth**:
-   - Site URL: `http://localhost:3000` (or your production URL)
-   - Add redirect URL: `http://localhost:3000/**` for email confirmation
+   - Site URL: `http://localhost:3000` (use `https://fitbuzz-xfab.vercel.app` in production)
+   - Add redirect URLs: `http://localhost:3000/**` and `https://fitbuzz-xfab.vercel.app/**` for email confirmation
    - Enable Email provider
 4. **Get keys**: Copy the Project URL and `anon` key to `.env.local`. Copy the `service_role` key as `SUPABASE_SECRET_KEY`.
 
@@ -113,6 +123,47 @@ The migrations create:
    Use the printed `whsec_...` secret as `STRIPE_WEBHOOK_SECRET`.
 
 > **Security**: Checkout and Billing Portal require an authenticated FitBuzz account. Subscription records are only updated by verified Stripe webhooks using the service-role Supabase client. Browser clients never write subscription data.
+
+### Deploying to Vercel
+
+1. **Import the repo** at [vercel.com/new](https://vercel.com/new) and add the environment variables below
+   for **Production** and **Preview**. Only `NEXT_PUBLIC_*` values are inlined into the browser bundle;
+   everything else is server-only:
+
+   | Variable | Environments | Save as Sensitive? |
+   | --- | --- | --- |
+   | `NEXT_PUBLIC_SUPABASE_URL` | Production, Preview, Development | No — public by design |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Production, Preview, Development | No — public by design |
+   | `SUPABASE_SECRET_KEY` | Production, Preview | **Yes** |
+   | `STRIPE_SECRET_KEY` | Production, Preview | **Yes** |
+   | `STRIPE_WEBHOOK_SECRET` | Production, Preview | **Yes** |
+   | `STRIPE_PRO_PRICE_ID`, `STRIPE_ELITE_PRICE_ID` | Production, Preview | Optional |
+   | `APP_URL` | Production (`https://…`, HTTPS enforced) | No |
+
+2. **Sensitive vs plain text.** While adding a variable, expand it and enable **Sensitive** (lock icon).
+   Vercel then stores it write-only, so it cannot be read back from the dashboard — which is what you want
+   for `SUPABASE_SECRET_KEY`, `STRIPE_SECRET_KEY`, and `STRIPE_WEBHOOK_SECRET`.
+
+   If Vercel shows *"…looks like a secret, but its value is visible to anyone with access. Consider rotating
+   at the source and saving as Secret"*, the value was stored as **plain text** (usually from a bulk `.env`
+   paste or import), so anyone with project access can read it. Fix it like this:
+   1. **Rotate at the source** (a Vercel-only edit is not enough — the old value is already exposed):
+      - Supabase → **Project Settings → API Keys** → create a new secret key, then revoke the old `sb_secret_…` key
+      - Stripe → **Developers → API keys** → roll the secret key
+      - Stripe → **Developers → Webhooks** → roll the endpoint's signing secret
+   2. **Update Vercel**: delete the affected variable and re-add it with **Sensitive** enabled, or click
+      **Rotate Variable** in the warning and paste the new value with **Sensitive** checked.
+   3. **Update `.env.local`** with the rotated values and restart `npm run dev`.
+   4. **Redeploy** so the new values are baked into the deployment.
+
+   > Sensitive values cannot be retrieved later (including via `vercel env pull`), so keep them in
+   > `.env.local` — it is gitignored (`.gitignore` → `.env*`) and must never be committed.
+
+3. **Supabase Auth**: add `https://fitbuzz-xfab.vercel.app/**` to **Authentication → URL Configuration →
+   Redirect URLs** and set the Site URL to the production origin.
+
+4. **Stripe webhook**: point the endpoint at `https://fitbuzz-xfab.vercel.app/api/stripe/webhook` and store
+   the resulting signing secret as `STRIPE_WEBHOOK_SECRET` (step 2).
 
 ## Available Scripts
 

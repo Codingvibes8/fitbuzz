@@ -56,13 +56,17 @@ export async function POST(request: Request) {
     }
 
     const metadata = { fitbuzz_user_id: user.id, fitbuzz_tier: tier };
+    const isProTrial = tier === "pro";
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: plan.priceId, quantity: 1 }],
       ...(existing?.stripe_customer_id ? { customer: existing.stripe_customer_id } : { customer_email: user.email ?? undefined }),
       client_reference_id: user.id,
       metadata,
-      subscription_data: { metadata },
+      subscription_data: {
+        metadata,
+        ...(isProTrial ? { trial_period_days: 14 } : {}),
+      },
       success_url: `${appUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/?checkout=cancelled`,
     });
