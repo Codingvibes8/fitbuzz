@@ -39,6 +39,9 @@ import type { SubscriptionSummary } from "@/lib/types/subscription";
 import type { NewWorkout, Workout } from "@/lib/types/workout";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { insertWorkouts, listWorkouts, removeWorkout } from "@/lib/supabase/workouts";
+import { useSubscription } from "@/lib/context/subscription-context";
+import { useFeatureAccess } from "@/lib/hooks/useFeatureAccess";
+import { canAccess, getApiLimit, TIER_FEATURES, type FeatureKey, type SubscriptionTier } from "@/lib/features";
 
 type View = "Overview" | "Workouts" | "Training plans" | "Progress" | "Membership" | "Settings";
 
@@ -76,12 +79,13 @@ const navItems: { label: View; icon: typeof LayoutDashboard }[] = [
   { label: "Membership", icon: CreditCard },
   { label: "Settings", icon: Settings2 },
 ];
-const membershipPlans = [
-  { tier: "free", name: "Free", price: "£0", description: "The essentials to build a lasting training habit.", features: ["Core workout tracking", "100 API calls per month", "1 custom training plan"] },
-  { tier: "pro", name: "Pro", price: "£9.99", description: "More guidance and room to grow your routine.", features: ["AI-powered features", "5,000 API calls per month", "Unlimited custom plans", "Advanced analytics"] },
-  { tier: "elite", name: "Elite", price: "£24.99", description: "A deeper level of coaching and developer access.", features: ["24/7 AI coach", "50,000 API calls per month", "API access for developers", "Priority support"] },
-] as const;
 const freeSubscription: SubscriptionSummary = { tier: "free", status: "free", stripe_subscription_id: null, current_period_end: null };
+
+const tierDisplayFeatures: Record<SubscriptionTier, string[]> = {
+  free: ["Core workout tracking", "100 API calls per month", "1 custom training plan"],
+  pro: ["AI-powered features", "5,000 API calls per month", "Unlimited custom plans", "Advanced analytics"],
+  elite: ["24/7 AI coach", "50,000 API calls per month", "API access for developers", "Priority support"],
+};
 const formatDate = (value: string) => {
   const date = new Date(`${value}T12:00:00`);
   if (value === todayISO()) return "Today";
@@ -113,6 +117,7 @@ function parseLegacyWorkouts(saved: string): NewWorkout[] {
 }
 
 export default function Home() {
+  const { subscription, loading: subscriptionLoading, refreshSubscription } = useSubscription();
   const [view, setView] = useState<View>("Overview");
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
@@ -129,7 +134,6 @@ export default function Home() {
   const [reminders, setReminders] = useState(true);
   const [weeklyReport, setWeeklyReport] = useState(false);
   const [period, setPeriod] = useState("This week");
-  const [subscription, setSubscription] = useState<SubscriptionSummary>(freeSubscription);
   const [billingAction, setBillingAction] = useState<"pro" | "elite" | "portal" | null>(null);
 
   useEffect(() => {
@@ -140,11 +144,11 @@ export default function Home() {
 
     const client = createClient();
     setSupabase(client);
-    const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription: authSub } } = client.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
     });
-    return () => subscription.unsubscribe();
+    return () => authSub.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -188,61 +192,34 @@ export default function Home() {
   }, [supabase, user?.id]);
 
   useEffect(() => {
-    if (!supabase || !user) {
-      setSubscription(freeSubscription);
-      return;
+    const params = new URLSearchParams(window.location.search);
+    const checkoutResult = params.get("checkout");
+    const billingReturned = params.get("billing") === "return";
+    if (checkoutResult || billingReturned) {
+      setView("Membership");
+      window.history.replaceState(null, "", window.location.pathname);
     }
-    const client = supabase;
-    let active = true;
-    const loadSubscription = async () => {
-      const { data, error } = await client.from("subscriptions")
-        .select("tier,status,stripe_subscription_id,current_period_end")
-        .maybeSingle();
-      if (error) throw error;
-      return data ?? freeSubscription;
-    };
 
-    async function refreshMembership() {
-      const params = new URLSearchParams(window.location.search);
-      const checkoutResult = params.get("checkout");
-      const billingReturned = params.get("billing") === "return";
-      if (checkoutResult || billingReturned) {
-        setView("Membership");
-        window.history.replaceState(null, "", window.location.pathname);
-      }
-
-      if (checkoutResult === "success") {
-        setToast("Payment received. Confirming your membership...");
-        for (let attempt = 0; attempt < 12 && active; attempt += 1) {
-          try {
-            const latest = await loadSubscription();
-            if (active) setSubscription(latest);
-            if (latest.status === "active" || latest.status === "trialing") {
-              if (active) setToast(`${latest.tier === "pro" ? "Pro" : "Elite"} membership is active.`);
-              return;
-            }
-          } catch {
-            break;
+    if (checkoutResult === "success") {
+      setToast("Payment received. Confirming your membership...");
+      const poll = async () => {
+        for (let attempt = 0; attempt < 12; attempt += 1) {
+          await refreshSubscription();
+          if (subscription.status === "active" || subscription.status === "trialing") {
+            setToast(`${subscription.tier === "pro" ? "Pro" : "Elite"} membership is active.`);
+            return;
           }
           await new Promise((resolve) => window.setTimeout(resolve, 1250));
         }
-        if (active) setToast("Payment received. Membership confirmation is delayed; refresh this page shortly.");
-        return;
-      }
-
-      try {
-        const latest = await loadSubscription();
-        if (active) setSubscription(latest);
-      } catch {
-        if (active) setToast("Membership details could not be loaded. Check that the billing migration has been applied.");
-      }
-      if (active && checkoutResult === "cancelled") setToast("Checkout cancelled. No payment was taken.");
-      if (active && billingReturned) setToast("Billing settings updated.");
+        setToast("Payment received. Membership confirmation is delayed; refresh this page shortly.");
+      };
+      void poll();
+      return;
     }
 
-    void refreshMembership();
-    return () => { active = false; };
-  }, [supabase, user?.id]);
+    if (checkoutResult === "cancelled") setToast("Checkout cancelled. No payment was taken.");
+    if (billingReturned) setToast("Billing settings updated.");
+  }, [subscription, refreshSubscription]);
 
   useEffect(() => {
     if (!toast) return;
@@ -272,8 +249,7 @@ export default function Home() {
   const metadataName = user?.user_metadata?.display_name;
   const displayName = typeof metadataName === "string" && metadataName.trim() ? metadataName.trim() : user?.email?.split("@")[0] ?? "there";
   const initials = displayName.split(/[.\s_-]+/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join("") || "FB";
-  const hasManageableSubscription = Boolean(subscription.stripe_subscription_id) && !["canceled", "incomplete_expired"].includes(subscription.status);
-  const currentTier = hasManageableSubscription ? subscription.tier : "free";
+  
 
   function switchView(nextView: View) {
     setView(nextView);
@@ -382,6 +358,10 @@ export default function Home() {
       if (input) input.value = title;
     }, 0);
   };
+
+  const hasManageableSubscription =
+    Boolean(subscription.stripe_subscription_id) && !["canceled", "incomplete_expired"].includes(subscription.status);
+  const currentTier = hasManageableSubscription ? subscription.tier : "free";
 
   if (authLoading) return <main className="auth-screen"><p className="auth-description">Restoring your session...</p></main>;
   if (!isSupabaseConfigured()) return (
@@ -505,45 +485,87 @@ export default function Home() {
 
           {view === "Training plans" && (
             <>
-              <PageHeading eyebrow="Find your rhythm" title="Training plans" description="A little structure, with plenty of room to make it yours." action={<button className="secondary-button" onClick={() => setToast("More training plans are on the way.")}><Sparkles size={14} /> Explore plans</button>} />
-              <section className="plan-banner"><div className="plan-banner-copy"><p className="eyebrow"><span className="eyebrow-mark" />Your current focus</p><h2>Stronger foundations</h2><p>Build strength at your own pace with three considered sessions each week.</p><div className="plan-metrics"><span className="plan-metric"><CalendarDays size={13} /> Week 2 of 4</span><span className="plan-metric"><Dumbbell size={13} /> 3 sessions / week</span><span className="plan-metric"><Check size={13} /> 4 of 9 complete</span></div></div><div className="plan-banner-art" role="img" aria-label="Strength training equipment in a gym" /></section>
-              <div className="section-toolbar"><h2>Your programs</h2><span className="page-subtitle">Pick up right where you left off.</span></div>
-              <div className="program-grid">{programs.map((program) => <article className="program-card" key={program.title}><div className="program-top"><span className="template-icon"><Target size={17} /></span><span className="program-status">{program.status}</span></div><h3>{program.title}</h3><p>{program.detail}</p><div className="program-progress"><span style={{ width: `${program.progress}%` }} /></div><div className="program-footer"><span>{program.weeks}</span><span>{program.progress}%</span></div></article>)}</div>
+              {canAccess(currentTier, "aiWorkoutPlans") ? (
+                <>
+                  <PageHeading eyebrow="Find your rhythm" title="Training plans" description="A little structure, with plenty of room to make it yours." action={<button className="secondary-button" onClick={() => setToast("More training plans are on the way.")}><Sparkles size={14} /> Explore plans</button>} />
+                  <section className="plan-banner"><div className="plan-banner-copy"><p className="eyebrow"><span className="eyebrow-mark" />Your current focus</p><h2>Stronger foundations</h2><p>Build strength at your own pace with three considered sessions each week.</p><div className="plan-metrics"><span className="plan-metric"><CalendarDays size={13} /> Week 2 of 4</span><span className="plan-metric"><Dumbbell size={13} /> 3 sessions / week</span><span className="plan-metric"><Check size={13} /> 4 of 9 complete</span></div></div><div className="plan-banner-art" role="img" aria-label="Strength training equipment in a gym" /></section>
+                  <div className="section-toolbar"><h2>Your programs</h2><span className="page-subtitle">Pick up right where you left off.</span></div>
+                  <div className="program-grid">{programs.map((program) => <article className="program-card" key={program.title}><div className="program-top"><span className="template-icon"><Target size={17} /></span><span className="program-status">{program.status}</span></div><h3>{program.title}</h3><p>{program.detail}</p><div className="program-progress"><span style={{ width: `${program.progress}%` }} /></div><div className="program-footer"><span>{program.weeks}</span><span>{program.progress}%</span></div></article>)}</div>
+                </>
+              ) : (
+                <div className="feature-locked">
+                  <div className="feature-locked-icon"><Sparkles size={32} /></div>
+                  <h2>Unlock AI Workout Plans</h2>
+                  <p>Get personalized training plans generated by AI based on your goals, schedule, and progress.</p>
+                  <ul className="feature-locked-benefits">
+                    <li><Check size={16} /> Custom plans tailored to your level</li>
+                    <li><Check size={16} /> Adaptive progression as you improve</li>
+                    <li><Check size={16} /> Unlimited plan variations</li>
+                  </ul>
+                  <button className="primary-button" onClick={() => { setView("Membership"); setToast("Choose Pro or Elite to unlock AI Workout Plans"); }}>
+                    <Sparkles size={14} /> Upgrade to Pro
+                  </button>
+                </div>
+              )}
             </>
           )}
 
-          {view === "Progress" && (
+{view === "Progress" && (
             <>
-              <PageHeading eyebrow="The work is working" title="Your progress" description="A wider view of the habits you’re building." action={<button className="secondary-button" onClick={() => setToast("Your progress summary is up to date.")}><TrendingUp size={14} /> This month <ChevronDown size={13} /></button>} />
-              <section className="stats-grid"><StatCard label="Sessions completed" value="14" unit="this month" change="3" detail="vs last month" icon={Dumbbell} /><StatCard label="Time well spent" value="612" unit="min" change="8%" detail="vs last month" icon={Clock3} /><StatCard label="Training streak" value="4" unit="days" change="Best: 9 days" detail="personal best" icon={Flame} /><StatCard label="Consistency" value="78" unit="%" change="On track" detail="monthly goal" icon={Trophy} /></section>
-              <div className="progress-grid">
-                <section className="panel"><div className="panel-heading"><div><h2 className="panel-title">Monthly milestones</h2><p className="panel-note">Small wins worth noticing.</p></div><span className="program-status">September</span></div><div className="goal-list"><GoalRow icon={Dumbbell} title="Training sessions" help="Goal: 16 sessions this month" value="14 / 16" progress="88%" /><GoalRow icon={Clock3} title="Active minutes" help="Goal: 720 minutes this month" value="612 / 720" progress="85%" /><GoalRow icon={Flame} title="Keep the streak alive" help="Goal: 5 days in a row" value="4 / 5 days" progress="80%" /><GoalRow icon={HeartPulse} title="Make time to recover" help="Goal: 4 mobility sessions" value="3 / 4" progress="75%" /></div></section>
-                <section className="streak-panel"><div><div className="streak-top"><span className="streak-title">YOUR CURRENT STREAK</span><span className="streak-fire"><Flame size={17} /></span></div><div className="streak-number">04</div><div className="streak-caption">days of showing up. That’s something.</div></div><div className="streak-days">{["M", "T", "W", "T", "F", "S", "S"].map((day, index) => <div className="streak-day" key={`${day}-${index}`}><span className={`streak-day-dot${index < 4 ? " done" : ""}`}>{index < 4 ? <Check size={11} /> : ""}</span>{day}</div>)}</div></section>
-              </div>
+              {canAccess(currentTier, "advancedAnalytics") ? (
+                <>
+                  <PageHeading eyebrow="The work is working" title="Your progress" description="A wider view of the habits you're building." action={<button className="secondary-button" onClick={() => setToast("Your progress summary is up to date.")}><TrendingUp size={14} /> This month <ChevronDown size={13} /></button>} />
+                  <section className="stats-grid"><StatCard label="Sessions completed" value="14" unit="this month" change="3" detail="vs last month" icon={Dumbbell} /><StatCard label="Time well spent" value="612" unit="min" change="8%" detail="vs last month" icon={Clock3} /><StatCard label="Training streak" value="4" unit="days" change="Best: 9 days" detail="personal best" icon={Flame} /><StatCard label="Consistency" value="78" unit="%" change="On track" detail="monthly goal" icon={Trophy} /></section>
+                  <div className="progress-grid">
+                    <section className="panel"><div className="panel-heading"><div><h2 className="panel-title">Monthly milestones</h2><p className="panel-note">Small wins worth noticing.</p></div><span className="program-status">September</span></div><div className="goal-list"><GoalRow icon={Dumbbell} title="Training sessions" help="Goal: 16 sessions this month" value="14 / 16" progress="88%" /><GoalRow icon={Clock3} title="Active minutes" help="Goal: 720 minutes this month" value="612 / 720" progress="85%" /><GoalRow icon={Flame} title="Keep the streak alive" help="Goal: 5 days in a row" value="4 / 5 days" progress="80%" /><GoalRow icon={HeartPulse} title="Make time to recover" help="Goal: 4 mobility sessions" value="3 / 4" progress="75%" /></div></section>
+                    <section className="streak-panel"><div><div className="streak-top"><span className="streak-title">YOUR CURRENT STREAK</span><span className="streak-fire"><Flame size={17} /></span></div><div className="streak-number">04</div><div className="streak-caption">days of showing up. That's something.</div></div><div className="streak-days">{["M", "T", "W", "T", "F", "S", "S"].map((day, index) => <div className="streak-day" key={`${day}-${index}`}><span className={`streak-day-dot${index < 4 ? " done" : ""}`}>{index < 4 ? <Check size={11} /> : ""}</span>{day}</div>)}</div></section>
+                  </div>
+                </>
+              ) : (
+                <div className="feature-locked">
+                  <div className="feature-locked-icon"><TrendingUp size={32} /></div>
+                  <h2>Unlock Advanced Analytics</h2>
+                  <p>Get deeper insights into your training with 6-month progress charts, exercise distribution, and AI-powered recommendations.</p>
+                  <ul className="feature-locked-benefits">
+                    <li><Check size={16} /> 6-month progress trends</li>
+                    <li><Check size={16} /> Exercise type distribution</li>
+                    <li><Check size={16} /> Monthly breakdown & insights</li>
+                    <li><Check size={16} /> AI-powered recommendations</li>
+                  </ul>
+                  <button className="primary-button" onClick={() => { setView("Membership"); setToast("Choose Pro or Elite to unlock Advanced Analytics"); }}>
+                    <TrendingUp size={14} /> Upgrade to Pro
+                  </button>
+                </div>
+              )}
             </>
           )}
 
-          {view === "Membership" && (
+{view === "Membership" && (
             <>
               <PageHeading eyebrow="Plans that move with you" title="Membership" description="Choose the level of support that suits your training." />
               <div className="membership-notice"><CreditCard size={16} /><p>Monthly plans are billed securely in GBP through Stripe. Your current plan is {currentTier === "pro" ? "Pro" : currentTier === "elite" ? "Elite" : "Free"}.</p></div>
               <section className="membership-grid" aria-label="Membership plans">
-                {membershipPlans.map((plan) => {
-                  const currentPlan = plan.tier === currentTier;
+                {(["free", "pro", "elite"] as const).map((tier) => {
+                  const plan = {
+                    free: { name: "Free", price: "£0", description: "The essentials to build a lasting training habit." },
+                    pro: { name: "Pro", price: "£9.99", description: "More guidance and room to grow your routine." },
+                    elite: { name: "Elite", price: "£24.99", description: "A deeper level of coaching and developer access." },
+                  }[tier];
+                  const currentPlan = tier === currentTier;
                   const actionLabel = currentPlan
-                    ? plan.tier === "free" ? "Current plan" : billingAction === "portal" ? "Opening billing..." : "Manage billing"
-                    : hasManageableSubscription ? "Change plan in billing portal" : billingAction === plan.tier ? "Opening checkout..." : `Choose ${plan.name}`;
+                    ? tier === "free" ? "Current plan" : billingAction === "portal" ? "Opening billing..." : "Manage billing"
+                    : hasManageableSubscription ? "Change plan in billing portal" : billingAction === tier ? "Opening checkout..." : `Choose ${plan.name}`;
                   return (
-                    <article className={`membership-card${plan.tier === "pro" ? " recommended" : ""}`} key={plan.tier}>
-                      {plan.name === "Pro" && <span className="membership-badge">Most popular</span>}
+                    <article className={`membership-card${tier === "pro" ? " recommended" : ""}`} key={tier}>
+                      {tier === "pro" && <span className="membership-badge">Most popular</span>}
                       <div className="membership-card-top"><h2>{plan.name}</h2>{currentPlan && <span className="membership-current">Current plan</span>}</div>
                       <p className="membership-description">{plan.description}</p>
                       <p className="membership-price"><strong>{plan.price}</strong><span> / month</span></p>
-                      <ul className="membership-features">{plan.features.map((feature) => <li key={feature}><Check size={14} />{feature}</li>)}</ul>
-                      <button className={currentPlan ? "secondary-button membership-action" : "primary-button membership-action"} disabled={billingAction !== null || (currentPlan && plan.tier === "free")} onClick={() => {
+                      <ul className="membership-features">{tierDisplayFeatures[tier].map((feature) => <li key={feature}><Check size={14} />{feature}</li>)}</ul>
+                      <button className={currentPlan ? "secondary-button membership-action" : "primary-button membership-action"} disabled={billingAction !== null || (currentPlan && tier === "free")} onClick={() => {
                         if (hasManageableSubscription) void openBillingPortal();
-                        else if (plan.tier === "free") setToast("You’re already on the Free plan.");
-                        else void startCheckout(plan.tier);
+                        else if (tier === "free") setToast("You're already on the Free plan.");
+                        else void startCheckout(tier);
                       }}>{actionLabel}</button>
                     </article>
                   );

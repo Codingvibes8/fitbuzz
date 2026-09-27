@@ -26,6 +26,8 @@ async function syncSubscription(subscriptionId: string, fallbackUserId?: string 
     stripe_subscription_id: subscription.id,
     current_period_end: new Date(subscription.items.data[0].current_period_end * 1000).toISOString(),
     updated_at: new Date().toISOString(),
+    api_calls_used: 0,
+    api_calls_reset_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
   }, { onConflict: "user_id" });
 
   if (error) throw error;

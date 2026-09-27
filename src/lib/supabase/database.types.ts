@@ -11,6 +11,8 @@ export type Database = {
           stripe_customer_id: string | null;
           stripe_subscription_id: string | null;
           current_period_end: string | null;
+          api_calls_used: number;
+          api_calls_reset_date: string;
           created_at: string;
           updated_at: string;
         };
@@ -21,6 +23,8 @@ export type Database = {
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
           current_period_end?: string | null;
+          api_calls_used?: number;
+          api_calls_reset_date?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -31,6 +35,8 @@ export type Database = {
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
           current_period_end?: string | null;
+          api_calls_used?: number;
+          api_calls_reset_date?: string;
           created_at?: string;
           updated_at?: string;
         };
