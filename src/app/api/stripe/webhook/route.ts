@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { getStripe, getTierForPriceId, type PaidTier } from "@/lib/billing/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
+import * as Sentry from "@sentry/nextjs";
 
 export const runtime = "nodejs";
 
@@ -36,33 +37,39 @@ async function syncSubscription(subscriptionId: string, fallbackUserId?: string 
 }
 
 export async function POST(request: Request) {
-  const signature = request.headers.get("stripe-signature");
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!signature || !webhookSecret) {
-    return NextResponse.json({ error: "Stripe webhook is not configured." }, { status: 400 });
-  }
-
-  let event: Stripe.Event;
   try {
-    const body = await request.text();
-    event = getStripe().webhooks.constructEvent(body, signature, webhookSecret);
-  } catch {
-    return NextResponse.json({ error: "Invalid Stripe webhook signature." }, { status: 400 });
-  }
-
-  try {
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object;
-      if (session.mode === "subscription" && typeof session.subscription === "string") {
-        await syncSubscription(session.subscription, session.metadata?.fitbuzz_user_id ?? session.client_reference_id, session.metadata?.fitbuzz_tier);
-      }
-    } else if (event.type.startsWith("customer.subscription.")) {
-      const subscription = event.data.object as Stripe.Subscription;
-      await syncSubscription(subscription.id);
+    const signature = request.headers.get("stripe-signature");
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!signature || !webhookSecret) {
+      return NextResponse.json({ error: "Stripe webhook is not configured." }, { status: 400 });
     }
-    return NextResponse.json({ received: true });
+
+    let event: Stripe.Event;
+    try {
+      const body = await request.text();
+      event = getStripe().webhooks.constructEvent(body, signature, webhookSecret);
+    } catch {
+      return NextResponse.json({ error: "Invalid Stripe webhook signature." }, { status: 400 });
+    }
+
+    try {
+      if (event.type === "checkout.session.completed") {
+        const session = event.data.object;
+        if (session.mode === "subscription" && typeof session.subscription === "string") {
+          await syncSubscription(session.subscription, session.metadata?.fitbuzz_user_id ?? session.client_reference_id, session.metadata?.fitbuzz_tier);
+        }
+      } else if (event.type.startsWith("customer.subscription.")) {
+        const subscription = event.data.object as Stripe.Subscription;
+        await syncSubscription(subscription.id);
+      }
+      return NextResponse.json({ received: true });
+    } catch (error) {
+      console.error("Unable to sync Stripe subscription", error);
+      Sentry.captureException(error);
+      return NextResponse.json({ error: "Subscription sync failed." }, { status: 500 });
+    }
   } catch (error) {
-    console.error("Unable to sync Stripe subscription", error);
-    return NextResponse.json({ error: "Subscription sync failed." }, { status: 500 });
+    Sentry.captureException(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
