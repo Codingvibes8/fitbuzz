@@ -18,6 +18,7 @@ async function syncSubscription(subscriptionId: string, fallbackUserId?: string 
   if (!userId || !tier) throw new Error("Stripe subscription is missing FitBuzz account metadata.");
 
   const paidAccess = ["active", "trialing", "past_due"].includes(subscription.status);
+  const trialEnd = subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null;
   const { error } = await createAdminClient().from("subscriptions").upsert({
     user_id: userId,
     tier: (paidAccess ? tier : "free") as PaidTier | "free",
@@ -25,6 +26,7 @@ async function syncSubscription(subscriptionId: string, fallbackUserId?: string 
     stripe_customer_id: typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id,
     stripe_subscription_id: subscription.id,
     current_period_end: new Date(subscription.items.data[0].current_period_end * 1000).toISOString(),
+    trial_end: trialEnd,
     updated_at: new Date().toISOString(),
     api_calls_used: 0,
     api_calls_reset_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
