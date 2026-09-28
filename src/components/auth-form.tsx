@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity } from "lucide-react";
+import { Activity, TrendingUp, Zap, CreditCard } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -52,23 +52,75 @@ export function AuthForm() {
   }
 
   return (
-    <main className="auth-screen">
-      <section className="auth-card" aria-labelledby="auth-title">
-        <div className="auth-brand"><span className="brand-mark"><Activity size={18} strokeWidth={2.5} /></span><span className="brand-name">fitbuzz<span>.</span></span></div>
-        <p className="eyebrow"><span className="eyebrow-mark" />Your training space</p>
-        <h1 id="auth-title">{mode === "sign-in" ? "Welcome back" : "Create your account"}</h1>
-        <p className="auth-description">{mode === "sign-in" ? "Sign in to pick up where your training left off." : "Save your workouts and build a rhythm that lasts."}</p>
-        <form onSubmit={submit}>
-          <div className="auth-fields">
-            {mode === "sign-up" && <label className="form-field"><span className="form-label">Name</span><input className="form-input" name="displayName" autoComplete="name" maxLength={80} /></label>}
-            <label className="form-field"><span className="form-label">Email</span><input className="form-input" name="email" type="email" autoComplete="email" required /></label>
-            <label className="form-field"><span className="form-label">Password</span><input className="form-input" name="password" type="password" autoComplete={mode === "sign-in" ? "current-password" : "new-password"} minLength={mode === "sign-up" ? 8 : undefined} required /></label>
+    <main className="landing-screen">
+      {/* Landing section — shown only when user is not signed in */}
+      <section className="landing">
+        <div className="landing-inner">
+          <div className="landing-content">
+            <div className="landing-eyebrow"><span className="eyebrow-mark" />Workout tracker</div>
+            <h1>Track every session. Build a rhythm that lasts.</h1>
+            <p className="landing-description">
+              Log your workouts, watch your consistency grow, and spot the habits
+              that move you forward. Free to start — upgrade when you want deeper
+              insight and AI-guided plans.
+            </p>
+            <div className="landing-features" role="list">
+              <div className="landing-feature" role="listitem">
+                <span className="landing-feature-icon"><Activity size={15} strokeWidth={2} /></span>
+                <span>Log strength, running, mobility, and cardio in seconds</span>
+              </div>
+              <div className="landing-feature" role="listitem">
+                <span className="landing-feature-icon"><TrendingUp size={15} strokeWidth={2} /></span>
+                <span>See your weekly activity, streaks, and progress at a glance</span>
+              </div>
+              <div className="landing-feature" role="listitem">
+                <span className="landing-feature-icon"><Zap size={15} strokeWidth={2} /></span>
+                <span>Quick-start templates and sample programs to keep you moving</span>
+              </div>
+              <div className="landing-feature" role="listitem">
+                <span className="landing-feature-icon"><CreditCard size={15} strokeWidth={2} /></span>
+                <span>Pro and Elite plans add AI plans, analytics, and coach features</span>
+              </div>
+            </div>
+            <div className="landing-pricing">
+              <div className="landing-price-item">
+                <span className="landing-price-amount">Free</span>
+                <span className="landing-price-label">Core tracking, forever</span>
+              </div>
+              <div className="landing-price-divider" />
+              <div className="landing-price-item">
+                <span className="landing-price-amount">£9.99</span>
+                <span className="landing-price-label">Pro / month</span>
+              </div>
+              <div className="landing-price-divider" />
+              <div className="landing-price-item">
+                <span className="landing-price-amount">£24.99</span>
+                <span className="landing-price-label">Elite / month</span>
+              </div>
+            </div>
           </div>
-          {error && <p className="auth-message error" role="alert">{error}</p>}
-          {notice && <p className="auth-message" role="status">{notice}</p>}
-          <button className="primary-button auth-submit" type="submit" disabled={busy}>{busy ? "Please wait..." : mode === "sign-in" ? "Sign in" : "Create account"}</button>
-        </form>
-        <p className="auth-switch">{mode === "sign-in" ? "New to FitBuzz?" : "Already have an account?"} <button className="text-button" type="button" onClick={() => changeMode(mode === "sign-in" ? "sign-up" : "sign-in")}>{mode === "sign-in" ? "Create an account" : "Sign in"}</button></p>
+
+          <section className="auth-card" aria-labelledby="auth-title">
+            <div className="auth-brand"><span className="brand-mark"><Activity size={18} strokeWidth={2.5} /></span><span className="brand-name">fitbuzz<span>.</span></span></div>
+            <p className="eyebrow"><span className="eyebrow-mark" />Your training space</p>
+            <h1 id="auth-title">{mode === "sign-in" ? "Welcome back" : "Create your account"}</h1>
+            <p className="auth-description">{mode === "sign-in" ? "Sign in to pick up where your training left off." : "Save your workouts and build a rhythm that lasts."}</p>
+            <form onSubmit={submit}>
+              <div className="auth-fields">
+                {mode === "sign-up" && <label className="form-field"><span className="form-label">Name</span><input className="form-input" name="displayName" autoComplete="name" maxLength={80} /></label>}
+                <label className="form-field"><span className="form-label">Email</span><input className="form-input" name="email" type="email" autoComplete="email" required /></label>
+                <label className="form-field"><span className="form-label">Password</span><input className="form-input" name="password" type="password" autoComplete={mode === "sign-in" ? "current-password" : "new-password"} minLength={mode === "sign-up" ? 8 : undefined} required /></label>
+              </div>
+              {error && <p className="auth-message error" role="alert">{error}</p>}
+              {notice && <p className="auth-message" role="status">{notice}</p>}
+              <button className="primary-button auth-submit" type="submit" disabled={busy}>{busy ? "Please wait..." : mode === "sign-in" ? "Sign in" : "Create account"}</button>
+            </form>
+            <p className="auth-switch">{mode === "sign-in" ? "New to FitBuzz?" : "Already have an account?"} <button className="text-button" type="button" onClick={() => changeMode(mode === "sign-in" ? "sign-up" : "sign-in")}>{mode === "sign-in" ? "Create an account" : "Sign in"}</button></p>
+            <p className="auth-pricing-note">
+              <a href="/pricing">View plans</a> — Free tier includes core tracking.
+            </p>
+          </section>
+        </div>
       </section>
     </main>
   );
