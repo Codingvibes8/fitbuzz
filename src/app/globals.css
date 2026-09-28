@@ -866,6 +866,13 @@ h1 { margin-bottom: 7px; font-size: clamp(27px, 3vw, 34px); font-weight: 730; le
   font-size: 11px;
 }
 
+.trial-note {
+  margin: 12px 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .comparison-table {
   padding: 40px clamp(22px, 4vw, 58px);
   background: #fff;

@@ -158,7 +158,7 @@ export default function PricingPage() {
           <p className="eyebrow">Simple, transparent pricing</p>
           <h1>Choose the plan that fits your training</h1>
           <p className="pricing-subtitle">
-            All plans include a 14-day free trial. No credit card required to start.
+            Start with a 14-day free trial on Pro or Elite. No charge until your trial ends.
           </p>
         </div>
       </header>
@@ -249,8 +249,12 @@ export default function PricingPage() {
                     )}
                   </button>
 
-                  {isFree && (
+                  {isFree ? (
                     <p className="free-note">No credit card required</p>
+                  ) : (
+                    <p className="trial-note">
+                      14-day free trial · Card required to start — no charge until your trial ends
+                    </p>
                   )}
                 </article>
               );
@@ -315,6 +319,10 @@ export default function PricingPage() {
 }
 
 const faqs = [
+  {
+    q: "Do I need a credit card to start a trial?",
+    a: "Yes. A card is required to start a Pro or Elite trial so we can charge you if you don't cancel before the trial ends. You won't be charged during the 14-day trial. If you cancel before it ends, nothing is charged and your account moves to the Free plan.",
+  },
   {
     q: "Can I switch plans later?",
     a: "Yes, you can upgrade or downgrade at any time. Upgrades take effect immediately, and downgrades apply at the end of your current billing period.",
