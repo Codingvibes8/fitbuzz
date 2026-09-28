@@ -52,25 +52,62 @@ const dateOffset = (days: number) => {
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
 };
-const weeklyActivity = [
-  { day: "Mon", minutes: 38 },
-  { day: "Tue", minutes: 55 },
-  { day: "Wed", minutes: 24 },
-  { day: "Thu", minutes: 0 },
-  { day: "Fri", minutes: 48 },
-  { day: "Sat", minutes: 61 },
-  { day: "Sun", minutes: 52 },
-];
+
+// ── Types for real data ────────────────────────────────────────────
+
+interface TrainingPlanData {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  difficulty: string;
+  duration_weeks: number;
+  sessions_per_week: number;
+  status: string;
+  current_week: number;
+  progress: number;
+  total_sessions: number;
+  completed_sessions: number;
+  is_ai_generated: boolean;
+  target_outcome: string | null;
+}
+
+interface WeeklyActivityPoint {
+  day: string;
+  minutes: number;
+}
+
+interface AnalyticsSummary {
+  weeklyActivity: WeeklyActivityPoint[];
+  currentStreak: number;
+  longestStreak: number;
+  sessionsThisMonth: number;
+  minutesThisMonth: number;
+  volumeThisMonth: number;
+  sessionsLastMonth: number;
+  consistency: number;
+  categoryBreakdown: Record<string, number>;
+}
+
+interface PlanSession {
+  id: string;
+  week_number: number;
+  session_number: number;
+  title: string;
+  category: string;
+  duration_minutes: number;
+  is_completed: boolean;
+  exercises: Record<string, unknown>[] | null;
+}
+
+// ── Static templates for quick-start ───────────────────────────────
+
 const templates = [
   { title: "Full body reset", detail: "A balanced start-to-finish strength session.", duration: 40, category: "Strength", icon: Dumbbell },
   { title: "Easy miles", detail: "A conversational pace run to build your base.", duration: 30, category: "Running", icon: HeartPulse },
   { title: "Move better", detail: "Loosen up and recover with guided mobility.", duration: 25, category: "Mobility", icon: Activity },
 ];
-const programs = [
-  { title: "Stronger foundations", detail: "A steady four-week strength progression.", weeks: "Week 2 of 4", progress: 43, status: "In progress" },
-  { title: "Run your first 5K", detail: "Three approachable runs each week.", weeks: "Week 1 of 6", progress: 17, status: "In progress" },
-  { title: "Everyday mobility", detail: "Small daily sessions to move freely.", weeks: "Week 3 of 3", progress: 72, status: "In progress" },
-];
+
 const navItems: { label: View; icon: typeof LayoutDashboard }[] = [
   { label: "Overview", icon: LayoutDashboard },
   { label: "Workouts", icon: Dumbbell },
@@ -79,6 +116,7 @@ const navItems: { label: View; icon: typeof LayoutDashboard }[] = [
   { label: "Membership", icon: CreditCard },
   { label: "Settings", icon: Settings2 },
 ];
+
 const freeSubscription: SubscriptionSummary = { tier: "free", status: "free", stripe_subscription_id: null, current_period_end: null };
 
 const tierDisplayFeatures: Record<SubscriptionTier, string[]> = {
@@ -86,12 +124,14 @@ const tierDisplayFeatures: Record<SubscriptionTier, string[]> = {
   pro: ["AI-powered features", "5,000 API calls per month", "Unlimited custom plans", "Advanced analytics"],
   elite: ["24/7 AI coach", "50,000 API calls per month", "API access for developers", "Priority support"],
 };
+
 const formatDate = (value: string) => {
   const date = new Date(`${value}T12:00:00`);
   if (value === todayISO()) return "Today";
   if (value === dateOffset(-1)) return "Yesterday";
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(date);
 };
+
 const greeting = () => {
   const hour = new Date().getHours();
   return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -116,6 +156,54 @@ function parseLegacyWorkouts(saved: string): NewWorkout[] {
   });
 }
 
+// ── Data fetching hooks ────────────────────────────────────────────
+
+async function fetchTrainingPlans(userId: string): Promise<TrainingPlanData[]> {
+  try {
+    const response = await fetch(`/api/training-plans?userId=${userId}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.plans || [];
+  } catch {
+    return [];
+  }
+}
+
+async function fetchAnalytics(userId: string): Promise<AnalyticsSummary | null> {
+  try {
+    const response = await fetch(`/api/analytics?type=summary`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.summary || null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchWeeklyActivity(userId: string): Promise<WeeklyActivityPoint[]> {
+  try {
+    const response = await fetch(`/api/analytics?type=weekly`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.activity || [];
+  } catch {
+    return [];
+  }
+}
+
+async function fetchStreak(userId: string): Promise<{ currentStreak: number; longestStreak: number } | null> {
+  try {
+    const response = await fetch(`/api/analytics?type=streak`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.streak || null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Main component ─────────────────────────────────────────────────
+
 export default function Home() {
   const { subscription, loading: subscriptionLoading, refreshSubscription } = useSubscription();
   const [view, setView] = useState<View>("Overview");
@@ -135,6 +223,15 @@ export default function Home() {
   const [weeklyReport, setWeeklyReport] = useState(false);
   const [period, setPeriod] = useState("This week");
   const [billingAction, setBillingAction] = useState<"pro" | "elite" | "portal" | null>(null);
+
+  // Real data state
+  const [trainingPlans, setTrainingPlans] = useState<TrainingPlanData[]>([]);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [weeklyActivityData, setWeeklyActivityData] = useState<WeeklyActivityPoint[]>([]);
+  const [weeklyActivityLoading, setWeeklyActivityLoading] = useState(false);
+  const [streakData, setStreakData] = useState<{ currentStreak: number; longestStreak: number } | null>(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -191,6 +288,56 @@ export default function Home() {
     return () => { active = false; };
   }, [supabase, user?.id]);
 
+  // Fetch training plans when user is logged in and view is Training plans
+  useEffect(() => {
+    if (!user || view !== "Training plans") return;
+
+    let active = true;
+    setPlansLoading(true);
+
+    async function loadPlans() {
+      const plans = await fetchTrainingPlans(user!.id);
+      if (active) setTrainingPlans(plans);
+    }
+
+    void loadPlans();
+    return () => { active = false; };
+  }, [user, view]);
+
+  // Fetch analytics data for Overview and Progress views
+  useEffect(() => {
+    if (!user) return;
+
+    let active = true;
+
+    async function loadAnalytics() {
+      // Fetch summary for Overview and Progress
+      if (view === "Overview" || view === "Progress") {
+        setAnalyticsLoading(true);
+        const summary = await fetchAnalytics(user!.id);
+        if (active) setAnalytics(summary);
+        setAnalyticsLoading(false);
+      }
+
+      // Fetch weekly activity for Overview chart
+      if (view === "Overview") {
+        setWeeklyActivityLoading(true);
+        const activity = await fetchWeeklyActivity(user!.id);
+        if (active) setWeeklyActivityData(activity);
+        setWeeklyActivityLoading(false);
+      }
+
+      // Fetch streak for Progress view
+      if (view === "Progress") {
+        const streak = await fetchStreak(user!.id);
+        if (active) setStreakData(streak);
+      }
+    }
+
+    void loadAnalytics();
+    return () => { active = false; };
+  }, [user, view]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const checkoutResult = params.get("checkout");
@@ -240,6 +387,7 @@ export default function Home() {
     const matchesSearch = `${workout.title} ${workout.category}`.toLowerCase().includes(search.toLowerCase());
     return matchesSearch && (category === "All types" || workout.category === category);
   }), [workouts, search, category]);
+
   const todayWorkouts = workouts.filter((workout) => workout.date === todayISO());
   const weekMinutes = workouts.filter((workout) => workout.date >= dateOffset(-6)).reduce((total, workout) => total + workout.duration, 0);
   const totalVolume = todayWorkouts.reduce((total, workout) => total + workout.volume, 0);
@@ -249,7 +397,6 @@ export default function Home() {
   const metadataName = user?.user_metadata?.display_name;
   const displayName = typeof metadataName === "string" && metadataName.trim() ? metadataName.trim() : user?.email?.split("@")[0] ?? "there";
   const initials = displayName.split(/[.\s_-]+/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join("") || "FB";
-  
 
   function switchView(nextView: View) {
     setView(nextView);
@@ -363,6 +510,19 @@ export default function Home() {
     Boolean(subscription.stripe_subscription_id) && !["canceled", "incomplete_expired"].includes(subscription.status);
   const currentTier = hasManageableSubscription ? subscription.tier : "free";
 
+  // Compute week minutes from real weekly activity data
+  const computedWeekMinutes = weeklyActivityData.reduce((sum, point) => sum + point.minutes, 0);
+
+  // Get current streak from real data
+  const currentStreak = streakData?.currentStreak ?? analytics?.currentStreak ?? 0;
+  const longestStreak = streakData?.longestStreak ?? analytics?.longestStreak ?? 0;
+
+  // Get analytics stats
+  const sessionsThisMonth = analytics?.sessionsThisMonth ?? 0;
+  const minutesThisMonth = analytics?.minutesThisMonth ?? 0;
+  const consistency = analytics?.consistency ?? 0;
+  const categoryBreakdown = analytics?.categoryBreakdown ?? {};
+
   if (authLoading) return <main className="auth-screen"><p className="auth-description">Restoring your session...</p></main>;
   if (!isSupabaseConfigured()) return (
     <main className="auth-screen">
@@ -418,20 +578,20 @@ export default function Home() {
               <Search className="search-icon" size={15} />
               <input aria-label="Search" placeholder="Search workouts" value={search} onChange={(event) => { setSearch(event.target.value); if (event.target.value) setView("Workouts"); }} />
             </label>
-            <button className="icon-button" aria-label="Notifications" onClick={() => setToast("You’re all caught up. Nice work.")}><Bell size={16} /><span className="notification-dot" /></button>
+            <button className="icon-button" aria-label="Notifications" onClick={() => setToast("You're all caught up. Nice work.")}><Bell size={16} /><span className="notification-dot" /></button>
           </div>
         </header>
 
         <div className="content">
           {view === "Overview" && (
             <>
-                <PageHeading eyebrow={dateLabel} title={`${greeting()}, ${displayName}`} description="You showed up for yourself today. Here’s your week at a glance." action={<button className="primary-button" onClick={() => openLog()}><Plus size={15} strokeWidth={2.5} /> Log workout</button>} />
+              <PageHeading eyebrow={dateLabel} title={`${greeting()}, ${displayName}`} description="You showed up for yourself today. Here's your week at a glance." action={<button className="primary-button" onClick={() => openLog()}><Plus size={15} strokeWidth={2.5} /> Log workout</button>} />
 
               <section className="stats-grid" aria-label="Weekly workout statistics">
                 <StatCard label="Workouts this week" value={String(workouts.filter((workout) => workout.date >= dateOffset(-6)).length)} unit="sessions" change="2" detail="vs last week" icon={Dumbbell} />
-                <StatCard label="Active minutes" value={String(weekMinutes)} unit="min" change="12%" detail="vs last week" icon={Clock3} />
-                <StatCard label="Current streak" value="4" unit="days" change="Personal best: 9" detail="keep it rolling" icon={Flame} />
-                <StatCard label="Today’s volume" value={todaysVolume} unit={unit} change={todayWorkouts.length ? "Logged today" : "Ready when you are"} detail="strength work" icon={Zap} />
+                <StatCard label="Active minutes" value={String(computedWeekMinutes || weekMinutes)} unit="min" change="12%" detail="vs last week" icon={Clock3} />
+                <StatCard label="Current streak" value={String(currentStreak)} unit="days" change={`Personal best: ${longestStreak}`} detail="keep it rolling" icon={Flame} />
+                <StatCard label="Today's volume" value={todaysVolume} unit={unit} change={todayWorkouts.length ? "Logged today" : "Ready when you are"} detail="strength work" icon={Zap} />
               </section>
 
               <div className="dashboard-grid">
@@ -443,12 +603,18 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="chart-wrap">
-                    <div className="chart-summary"><span className="chart-total">{period === "This week" ? weekMinutes : 284}</span><span className="chart-unit">active minutes</span></div>
-                    <div className="bar-chart" role="img" aria-label={`${weekMinutes} active minutes this week, shown across seven days`}>
-                      {weeklyActivity.map((point, index) => <div className="chart-day" key={point.day}>
-                        <div className="bar-zone"><div className={`bar-column${index === 6 && period === "This week" ? " current" : ""}`} style={{ height: `${Math.max(point.minutes, 5) / maxBar * 100}%` }} title={`${point.minutes} minutes`} /></div>
-                        <span className="day-label">{point.day}</span>
-                      </div>)}
+                    <div className="chart-summary"><span className="chart-total">{period === "This week" ? computedWeekMinutes : weekMinutes}</span><span className="chart-unit">active minutes</span></div>
+                    <div className="bar-chart" role="img" aria-label={`${computedWeekMinutes} active minutes this week, shown across seven days`}>
+                      {weeklyActivityData.length > 0 ? (
+                        weeklyActivityData.map((point) => (
+                          <div className="chart-day" key={point.day}>
+                            <div className="bar-zone"><div className={`bar-column${point.day === "Sun" && period === "This week" ? " current" : ""}`} style={{ height: `${Math.max(point.minutes, 5) / maxBar * 100}%` }} title={`${point.minutes} minutes`} /></div>
+                            <span className="day-label">{point.day}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="empty-state">No activity recorded yet. Log your first workout!</div>
+                      )}
                     </div>
                     <div className="chart-foot"><span className="chart-legend"><i className="legend-dot" /> Active minutes</span><span className="goal-note"><Target size={12} /> Weekly goal: 300 min</span></div>
                   </div>
@@ -487,10 +653,58 @@ export default function Home() {
             <>
               {canAccess(currentTier, "aiWorkoutPlans") ? (
                 <>
-                  <PageHeading eyebrow="Find your rhythm" title="Training plans" description="A little structure, with plenty of room to make it yours." action={<button className="secondary-button" onClick={() => setToast("More training plans are on the way.")}><Sparkles size={14} /> Explore plans</button>} />
-                  <section className="plan-banner"><div className="plan-banner-copy"><p className="eyebrow"><span className="eyebrow-mark" />Your current focus</p><h2>Stronger foundations</h2><p>Build strength at your own pace with three considered sessions each week.</p><div className="plan-metrics"><span className="plan-metric"><CalendarDays size={13} /> Week 2 of 4</span><span className="plan-metric"><Dumbbell size={13} /> 3 sessions / week</span><span className="plan-metric"><Check size={13} /> 4 of 9 complete</span></div></div><div className="plan-banner-art" role="img" aria-label="Strength training equipment in a gym" /></section>
+                  <PageHeading eyebrow="Find your rhythm" title="Training plans" description="A little structure, with plenty of room to make it yours." action={<button className="secondary-button" onClick={() => setToast("More training plans are on the way.")}><Sparkles size={14} /> Generate AI plan</button>} />
+
+                  {/* AI Plan Generator Modal Trigger */}
+                  {trainingPlans.length === 0 && (
+                    <div className="generate-prompt">
+                      <Sparkles size={24} />
+                      <h3>Create your first AI-powered training plan</h3>
+                      <p>Tell us about your goals and we'll build a personalized program for you.</p>
+                      <button className="primary-button" onClick={() => openLog("Generate Plan")}>
+                        <Sparkles size={14} /> Generate My Plan
+                      </button>
+                    </div>
+                  )}
+
                   <div className="section-toolbar"><h2>Your programs</h2><span className="page-subtitle">Pick up right where you left off.</span></div>
-                  <div className="program-grid">{programs.map((program) => <article className="program-card" key={program.title}><div className="program-top"><span className="template-icon"><Target size={17} /></span><span className="program-status">{program.status}</span></div><h3>{program.title}</h3><p>{program.detail}</p><div className="program-progress"><span style={{ width: `${program.progress}%` }} /></div><div className="program-footer"><span>{program.weeks}</span><span>{program.progress}%</span></div></article>)}</div>
+
+                  {plansLoading ? (
+                    <div className="empty-state">Loading your training plans...</div>
+                  ) : trainingPlans.length > 0 ? (
+                    <div className="program-grid">
+                      {trainingPlans.map((program) => (
+                        <article className="program-card" key={program.id}>
+                          <div className="program-top">
+                            <span className="template-icon"><Target size={17} /></span>
+                            <span className="program-status">{program.status === "active" ? "In progress" : program.status}</span>
+                            {program.is_ai_generated && <span className="ai-badge">AI</span>}
+                          </div>
+                          <h3>{program.title}</h3>
+                          <p>{program.description}</p>
+                          <div className="program-metrics">
+                            <span className="plan-metric"><CalendarDays size={13} /> Week {program.current_week} of {program.duration_weeks}</span>
+                            <span className="plan-metric"><Dumbbell size={13} /> {program.sessions_per_week} sessions / week</span>
+                            <span className="plan-metric"><Check size={13} /> {program.completed_sessions} of {program.total_sessions} complete</span>
+                          </div>
+                          <div className="program-progress"><span style={{ width: `${program.progress}%` }} /></div>
+                          <div className="program-footer">
+                            <span>{program.progress}%</span>
+                            {program.progress < 100 && <button className="text-button" onClick={() => setToast("Continue your plan")}>Continue <ArrowRight size={12} /></button>}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state" style={{ textAlign: "center", padding: "40px" }}>
+                      <CalendarDays size={48} strokeWidth={1.5} />
+                      <h3>No training plans yet</h3>
+                      <p>Generate an AI-powered plan tailored to your goals, or create a custom plan manually.</p>
+                      <button className="primary-button" style={{ marginTop: "16px" }} onClick={() => setToast("AI plan generation coming soon!")}>
+                        <Sparkles size={14} /> Generate AI Plan
+                      </button>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="feature-locked">
@@ -510,15 +724,55 @@ export default function Home() {
             </>
           )}
 
-{view === "Progress" && (
+          {view === "Progress" && (
             <>
               {canAccess(currentTier, "advancedAnalytics") ? (
                 <>
                   <PageHeading eyebrow="The work is working" title="Your progress" description="A wider view of the habits you're building." action={<button className="secondary-button" onClick={() => setToast("Your progress summary is up to date.")}><TrendingUp size={14} /> This month <ChevronDown size={13} /></button>} />
-                  <section className="stats-grid"><StatCard label="Sessions completed" value="14" unit="this month" change="3" detail="vs last month" icon={Dumbbell} /><StatCard label="Time well spent" value="612" unit="min" change="8%" detail="vs last month" icon={Clock3} /><StatCard label="Training streak" value="4" unit="days" change="Best: 9 days" detail="personal best" icon={Flame} /><StatCard label="Consistency" value="78" unit="%" change="On track" detail="monthly goal" icon={Trophy} /></section>
+
+                  <section className="stats-grid">
+                    <StatCard label="Sessions completed" value={String(sessionsThisMonth)} unit="this month" change={analytics?.sessionsLastMonth ? `+${Math.round((sessionsThisMonth - analytics.sessionsLastMonth) / Math.max(analytics.sessionsLastMonth, 1) * 100)}%` : "New"} detail="vs last month" icon={Dumbbell} />
+                    <StatCard label="Time well spent" value={String(minutesThisMonth)} unit="min" change={analytics?.sessionsLastMonth ? `+${Math.round((minutesThisMonth - (analytics.sessionsLastMonth * 45)) / Math.max(analytics.sessionsLastMonth * 45, 1) * 100)}%` : "New"} detail="vs last month" icon={Clock3} />
+                    <StatCard label="Training streak" value={String(currentStreak)} unit="days" change={`Best: ${longestStreak} days`} detail="personal best" icon={Flame} />
+                    <StatCard label="Consistency" value={String(consistency)} unit="%" change={consistency >= 80 ? "On track" : consistency >= 50 ? "Building" : "Keep going"} detail="monthly goal" icon={Trophy} />
+                  </section>
+
                   <div className="progress-grid">
-                    <section className="panel"><div className="panel-heading"><div><h2 className="panel-title">Monthly milestones</h2><p className="panel-note">Small wins worth noticing.</p></div><span className="program-status">September</span></div><div className="goal-list"><GoalRow icon={Dumbbell} title="Training sessions" help="Goal: 16 sessions this month" value="14 / 16" progress="88%" /><GoalRow icon={Clock3} title="Active minutes" help="Goal: 720 minutes this month" value="612 / 720" progress="85%" /><GoalRow icon={Flame} title="Keep the streak alive" help="Goal: 5 days in a row" value="4 / 5 days" progress="80%" /><GoalRow icon={HeartPulse} title="Make time to recover" help="Goal: 4 mobility sessions" value="3 / 4" progress="75%" /></div></section>
-                    <section className="streak-panel"><div><div className="streak-top"><span className="streak-title">YOUR CURRENT STREAK</span><span className="streak-fire"><Flame size={17} /></span></div><div className="streak-number">04</div><div className="streak-caption">days of showing up. That's something.</div></div><div className="streak-days">{["M", "T", "W", "T", "F", "S", "S"].map((day, index) => <div className="streak-day" key={`${day}-${index}`}><span className={`streak-day-dot${index < 4 ? " done" : ""}`}>{index < 4 ? <Check size={11} /> : ""}</span>{day}</div>)}</div></section>
+                    <section className="panel">
+                      <div className="panel-heading">
+                        <div><h2 className="panel-title">Monthly milestones</h2><p className="panel-note">Small wins worth noticing.</p></div>
+                        <span className="program-status">{new Intl.DateTimeFormat("en", { month: "long" }).format(new Date())}</span>
+                      </div>
+                      <div className="goal-list">
+                        <GoalRow icon={Dumbbell} title="Training sessions" help={`Goal: 16 sessions this month`} value={`${sessionsThisMonth} / 16`} progress={`${Math.min(100, Math.round((sessionsThisMonth / 16) * 100))}%`} />
+                        <GoalRow icon={Clock3} title="Active minutes" help="Goal: 720 minutes this month" value={`${minutesThisMonth} / 720`} progress={`${Math.min(100, Math.round((minutesThisMonth / 720) * 100))}%`} />
+                        <GoalRow icon={Flame} title="Keep the streak alive" help="Goal: 5 days in a row" value={`${currentStreak} / 5 days`} progress={`${Math.min(100, Math.round((currentStreak / 5) * 100))}%`} />
+                        <GoalRow icon={HeartPulse} title="Make time to recover" help="Goal: 4 mobility sessions" value={`${categoryBreakdown["Mobility"] || 0} / 4`} progress={`${Math.min(100, Math.round(((categoryBreakdown["Mobility"] || 0) / 4) * 100))}%`} />
+                      </div>
+                    </section>
+
+                    <section className="streak-panel">
+                      <div>
+                        <div className="streak-top">
+                          <span className="streak-title">YOUR CURRENT STREAK</span>
+                          <span className="streak-fire"><Flame size={17} /></span>
+                        </div>
+                        <div className="streak-number">
+                          {String(currentStreak).padStart(2, "0")}
+                        </div>
+                        <div className="streak-caption">days of showing up. That's something.</div>
+                      </div>
+                      <div className="streak-days">
+                        {["M", "T", "W", "T", "F", "S", "S"].map((day, index) => (
+                          <div className="streak-day" key={`${day}-${index}`}>
+                            <span className={`streak-day-dot${index < currentStreak ? " done" : ""}`}>
+                              {index < currentStreak ? <Check size={11} /> : ""}
+                            </span>
+                            {day}
+                          </div>
+                        ))}
+                      </div>
+                    </section>
                   </div>
                 </>
               ) : (
@@ -540,7 +794,7 @@ export default function Home() {
             </>
           )}
 
-{view === "Membership" && (
+          {view === "Membership" && (
             <>
               <PageHeading eyebrow="Plans that move with you" title="Membership" description="Choose the level of support that suits your training." />
               <div className="membership-notice"><CreditCard size={16} /><p>Monthly plans are billed securely in GBP through Stripe. Your current plan is {currentTier === "pro" ? "Pro" : currentTier === "elite" ? "Elite" : "Free"}.</p></div>
