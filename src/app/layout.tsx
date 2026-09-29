@@ -6,9 +6,9 @@ export const metadata: Metadata = {
   title: "FitBuzz | Training, in rhythm",
   description: "A clear, personal home for your training and progress.",
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/favicon.ico",
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
   },
 };
 

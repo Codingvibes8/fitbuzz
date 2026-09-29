@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Activity,
   ArrowRight,
   Bell,
   CalendarDays,
@@ -35,6 +34,7 @@ import { PageHeading } from "@/components/dashboard/page-heading";
 import { SettingRow } from "@/components/dashboard/setting-row";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { WorkoutList } from "@/components/dashboard/workout-list";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { SubscriptionSummary } from "@/lib/types/subscription";
 import type { NewWorkout, Workout } from "@/lib/types/workout";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
@@ -105,7 +105,7 @@ interface PlanSession {
 const templates = [
   { title: "Full body reset", detail: "A balanced start-to-finish strength session.", duration: 40, category: "Strength", icon: Dumbbell },
   { title: "Easy miles", detail: "A conversational pace run to build your base.", duration: 30, category: "Running", icon: HeartPulse },
-  { title: "Move better", detail: "Loosen up and recover with guided mobility.", duration: 25, category: "Mobility", icon: Activity },
+  { title: "Move better", detail: "Loosen up and recover with guided mobility.", duration: 25, category: "Mobility", icon: Sparkles },
 ];
 
 const navItems: { label: View; icon: typeof LayoutDashboard }[] = [
@@ -218,6 +218,8 @@ export default function Home() {
   const [modalOpen, setModalOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   const [unit, setUnit] = useState<"kg" | "lb">("lb");
   const [reminders, setReminders] = useState(true);
   const [weeklyReport, setWeeklyReport] = useState(false);
@@ -527,7 +529,16 @@ export default function Home() {
   if (!isSupabaseConfigured()) return (
     <main className="auth-screen">
       <section className="auth-card auth-config" aria-labelledby="setup-title">
-        <div className="auth-brand"><span className="brand-mark"><Activity size={18} strokeWidth={2.5} /></span><span className="brand-name">fitbuzz<span>.</span></span></div>
+        <div className="auth-brand">
+          <span className="brand-mark">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m15 10.42 4.8-5.07" />
+              <path d="M19 18h3" />
+              <path d="M9.5 22 21.414 9.415A2 2 0 0 0 21.2 6.4l-5.61-4.208A1 1 0 0 0 14 3v2a2 2 0 0 1-1.394 1.906L8.677 8.053A1 1 0 0 0 8 9c-.155 6.393-2.082 9-4 9a2 2 0 0 0 0 4h14" />
+            </svg>
+          </span>
+          <span className="brand-name">fitbuzz<span>.</span></span>
+        </div>
         <p className="eyebrow"><span className="eyebrow-mark" />Backend setup</p>
         <h1 id="setup-title">Connect your Supabase project</h1>
         <p className="auth-description">Add your project URL and anon key to <code>.env.local</code>, then apply the SQL migration in <code>supabase/migrations</code>.</p>
@@ -540,17 +551,25 @@ export default function Home() {
     <div className="app-shell">
       <aside className={`sidebar${mobileNavOpen ? " mobile-open" : ""}`} aria-label="Main navigation">
         <div className="brand">
-          <span className="brand-mark"><Activity size={18} strokeWidth={2.5} /></span>
+          <span className="brand-mark">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m15 10.42 4.8-5.07" />
+              <path d="M19 18h3" />
+              <path d="M9.5 22 21.414 9.415A2 2 0 0 0 21.2 6.4l-5.61-4.208A1 1 0 0 0 14 3v2a2 2 0 0 1-1.394 1.906L8.677 8.053A1 1 0 0 0 8 9c-.155 6.393-2.082 9-4 9a2 2 0 0 0 0 4h14" />
+            </svg>
+          </span>
           <span className="brand-name">fitbuzz<span>.</span></span>
         </div>
         <p className="sidebar-label">Training space</p>
         <nav className="nav-list">
           {navItems.map(({ label, icon: Icon }) => (
-            <button key={label} className={`nav-item${view === label ? " active" : ""}`} onClick={() => switchView(label)} aria-current={view === label ? "page" : undefined}>
-              <span className="nav-icon"><Icon size={17} strokeWidth={1.8} /></span>
-              <span className="nav-label">{label}</span>
-              {label === "Workouts" && <span className="nav-count">{workouts.length}</span>}
-            </button>
+            <Tooltip key={label} content={label} side="top" delayDuration={300}>
+              <button className={`nav-item${view === label ? " active" : ""}`} onClick={() => switchView(label)} aria-current={view === label ? "page" : undefined}>
+                <span className="nav-icon"><Icon size={17} strokeWidth={1.8} /></span>
+                <span className="nav-label">{label}</span>
+                {label === "Workouts" && <span className="nav-count">{workouts.length}</span>}
+              </button>
+            </Tooltip>
           ))}
         </nav>
         <div className="sidebar-spacer" />
@@ -574,10 +593,68 @@ export default function Home() {
             <span>Training space</span><ChevronRight size={13} /><strong>{view}</strong>
           </div>
           <div className="top-actions">
-            <label className="search-wrap" aria-label="Search workouts">
-              <Search className="search-icon" size={15} />
-              <input aria-label="Search" placeholder="Search workouts" value={search} onChange={(event) => { setSearch(event.target.value); if (event.target.value) setView("Workouts"); }} />
-            </label>
+            <div className="search-container" onMouseEnter={() => setSearchDropdownOpen(true)} onMouseLeave={() => setSearchDropdownOpen(false)}>
+              <label className="search-wrap" aria-label="Search workouts">
+                <Search className="search-icon" size={15} />
+                <input
+                  aria-label="Search"
+                  placeholder="Search workouts"
+                  value={search}
+                  onChange={(event) => { setSearch(event.target.value); if (event.target.value) setView("Workouts"); }}
+                  onFocus={() => { setSearchFocused(true); setSearchDropdownOpen(true); }}
+                  onBlur={() => { setSearchFocused(false); window.setTimeout(() => setSearchDropdownOpen(false), 200); }}
+                />
+              </label>
+              {(searchDropdownOpen || searchFocused) && (
+                <div className="search-dropdown" role="listbox" aria-label="Search suggestions">
+                  <div className="dropdown-section">
+                    <span className="dropdown-heading">Quick actions</span>
+                    <button className="dropdown-item" role="option" onClick={() => { openLog(); setSearchDropdownOpen(false); }}>
+                      <Plus size={13} strokeWidth={2.5} />
+                      <span>Log new workout</span>
+                    </button>
+                    <button className="dropdown-item" role="option" onClick={() => { setView("Workouts"); setSearchDropdownOpen(false); }}>
+                      <ListFilter size={13} />
+                      <span>View all workouts</span>
+                    </button>
+                    <button className="dropdown-item" role="option" onClick={() => { setView("Training plans"); setSearchDropdownOpen(false); }}>
+                      <CalendarDays size={13} />
+                      <span>Training plans</span>
+                    </button>
+                    <button className="dropdown-item" role="option" onClick={() => { setView("Progress"); setSearchDropdownOpen(false); }}>
+                      <TrendingUp size={13} />
+                      <span>Progress analytics</span>
+                    </button>
+                  </div>
+                  <div className="dropdown-section">
+                    <span className="dropdown-heading">Filter by type</span>
+                    {["Strength", "Running", "Mobility", "Cardio"].map((type) => (
+                      <button key={type} className="dropdown-item" role="option" onClick={() => { setCategory(type); setView("Workouts"); setSearchDropdownOpen(false); }}>
+                        <span className="dropdown-type-icon">{type === "Strength" && <Dumbbell size={13} />}
+                        {type === "Running" && <HeartPulse size={13} />}
+                        {type === "Mobility" && <Sparkles size={13} />}
+                        {type === "Cardio" && <Flame size={13} />}</span>
+                        <span>{type}</span>
+                        <span className="dropdown-count">{workouts.filter(w => w.category === type).length}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {workouts.length > 0 && (
+                    <div className="dropdown-section">
+                      <span className="dropdown-heading">Recent workouts</span>
+                      {workouts.slice(0, 3).map((workout) => (
+                        <button key={workout.id} className="dropdown-item recent-workout" role="option" onClick={() => { setSearch(workout.title); setView("Workouts"); setSearchDropdownOpen(false); }}>
+                          <div className="recent-workout-info">
+                            <span className="recent-workout-title">{workout.title}</span>
+                            <span className="recent-workout-meta">{workout.category} · {workout.duration} min · {formatDate(workout.date)}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <button className="icon-button" aria-label="Notifications" onClick={() => setToast("You're all caught up. Nice work.")}><Bell size={16} /><span className="notification-dot" /></button>
           </div>
         </header>
