@@ -94,6 +94,7 @@ fitflow-ai/
 - Premium glass-morphism cards
 - Gradient text and buttons
 - Glow effects on interactions
+- Emmerald accents
 - Smooth animations
 - Responsive grid layouts
 - Dark theme optimized
@@ -184,10 +185,10 @@ npm start
 - **State**: Zustand + React Context (implemented)
 
 ### Backend Ready
-- **Database**: Prisma + PostgreSQL (integration guide included)
-- **Auth**: NextAuth.js v5 (integration guide included)
+- **Database**: Supabse + PostgreSQL (integration guide included)
+- **Auth**: Supabase Auth (integration guide included)
 - **Payments**: Stripe integration ready (guide included)
-- **AI**: Claude API integration examples included
+- **AI**:  API integration examples included
 
 ## 📚 Documentation Included
 
@@ -199,8 +200,8 @@ npm start
 - Future enhancements
 
 ### INTEGRATION.md
-- Prisma database setup
-- NextAuth.js authentication
+- Supabase database setup
+- Supabase Auth authentication
 - Stripe payment processing
 - Claude AI integration
 - API routes examples
@@ -260,8 +261,8 @@ All files are created and ready to download:
 ## 🔐 For Production
 
 Follow the `INTEGRATION.md` guide to add:
-- Real database (Prisma + PostgreSQL)
-- Authentication (NextAuth.js)
+- Real database (Supabase + PostgreSQL)
+- Authentication (Supabase Auth)
 - Payments (Stripe)
 - AI features (Claude API)
 - Email notifications
@@ -318,4 +319,4 @@ Start with the free tier on Vercel and scale as you grow!
 
 **Built with ❤️ for fitness enthusiasts and developers**
 
-All files are in the `/home/claude` directory. Download the entire `fitflow-ai` folder to get started!
+
