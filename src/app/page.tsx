@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Activity,
   ArrowRight,
   Bell,
   CalendarDays,
@@ -530,13 +531,7 @@ export default function Home() {
     <main className="auth-screen">
       <section className="auth-card auth-config" aria-labelledby="setup-title">
         <div className="auth-brand">
-          <span className="brand-mark">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m15 10.42 4.8-5.07" />
-              <path d="M19 18h3" />
-              <path d="M9.5 22 21.414 9.415A2 2 0 0 0 21.2 6.4l-5.61-4.208A1 1 0 0 0 14 3v2a2 2 0 0 1-1.394 1.906L8.677 8.053A1 1 0 0 0 8 9c-.155 6.393-2.082 9-4 9a2 2 0 0 0 0 4h14" />
-            </svg>
-          </span>
+          <span className="brand-mark"><Activity size={18} strokeWidth={2.5} /></span>
           <span className="brand-name">fitbuzz<span>.</span></span>
         </div>
         <p className="eyebrow"><span className="eyebrow-mark" />Backend setup</p>
@@ -549,13 +544,7 @@ export default function Home() {
     <main className="auth-screen">
       <section className="auth-card auth-config" aria-labelledby="setup-title">
         <div className="auth-brand">
-          <span className="brand-mark">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m15 10.42 4.8-5.07" />
-              <path d="M19 18h3" />
-              <path d="M9.5 22 21.414 9.415A2 2 0 0 0 21.2 6.4l-5.61-4.208A1 1 0 0 0 14 3v2a2 2 0 0 1-1.394 1.906L8.677 8.053A1 1 0 0 0 8 9c-.155 6.393-2.082 9-4 9a2 2 0 0 0 0 4h14" />
-            </svg>
-          </span>
+          <span className="brand-mark"><Activity size={18} strokeWidth={2.5} /></span>
           <span className="brand-name">fitbuzz<span>.</span></span>
         </div>
         <p className="eyebrow"><span className="eyebrow-mark" />Backend setup</p>
@@ -570,13 +559,7 @@ export default function Home() {
     <div className="app-shell">
       <aside className={`sidebar${mobileNavOpen ? " mobile-open" : ""}`} aria-label="Main navigation">
         <div className="brand">
-          <span className="brand-mark">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m15 10.42 4.8-5.07" />
-              <path d="M19 18h3" />
-              <path d="M9.5 22 21.414 9.415A2 2 0 0 0 21.2 6.4l-5.61-4.208A1 1 0 0 0 14 3v2a2 2 0 0 1-1.394 1.906L8.677 8.053A1 1 0 0 0 8 9c-.155 6.393-2.082 9-4 9a2 2 0 0 0 0 4h14" />
-            </svg>
-          </span>
+          <span className="brand-mark"><Activity size={18} strokeWidth={2.5} /></span>
           <span className="brand-name">fitbuzz<span>.</span></span>
         </div>
         <p className="sidebar-label">Training space</p>
@@ -593,7 +576,6 @@ export default function Home() {
         </nav>
         <div className="sidebar-spacer" />
         <section className="sidebar-coach">
-          <span className="coach-orbit" />
           <div className="coach-kicker"><Sparkles size={12} /> Your next step</div>
           <p className="coach-title">Small steps. Strong habits.</p>
           <button className="coach-link" onClick={() => switchView("Training plans")}>Explore your plans <ChevronRight size={13} /></button>

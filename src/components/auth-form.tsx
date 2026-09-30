@@ -74,13 +74,11 @@ export function AuthForm() {
 
   return (
     <main className="landing-screen">
-      {/* Ambient glow orbs */}
       <div className="landing-glow landing-glow-1" />
       <div className="landing-glow landing-glow-2" />
 
       <section className="landing">
         <div className="landing-inner">
-          {/* Left — Brand & Value Prop */}
           <div className="landing-content">
             <div className="landing-brand">
               <span className="landing-brand-icon"><Activity size={20} strokeWidth={2.5} /></span>
@@ -135,12 +133,9 @@ export function AuthForm() {
             </div>
           </div>
 
-          {/* Right — Auth Card */}
           <section className="auth-card" aria-labelledby="auth-title">
-            {/* Card top highlight strip */}
             <div className="auth-card-highlight" />
 
-            {/* Brand header */}
             <div className="auth-card-header">
               <div className="auth-brand-emblem">
                 <Activity size={22} strokeWidth={2.5} />
@@ -155,13 +150,11 @@ export function AuthForm() {
               </div>
             </div>
 
-            {/* Welcome copy */}
             <div className="auth-welcome">
               <h1 id="auth-title">{mode === "sign-in" ? "Welcome back" : "Create your account"}</h1>
               <p>{mode === "sign-in" ? "Sign in to pick up where your training left off." : "Save your workouts and build a rhythm that lasts."}</p>
             </div>
 
-            {/* Form */}
             <form onSubmit={submit} className="auth-form">
               <div className="auth-fields">
                 {mode === "sign-up" && (
@@ -252,14 +245,12 @@ export function AuthForm() {
               </button>
             </form>
 
-            {/* Divider */}
             <div className="auth-divider">
               <span className="auth-divider-line" />
               <span className="auth-divider-text">or</span>
               <span className="auth-divider-line" />
             </div>
 
-            {/* Google SSO */}
             <button className="google-button" type="button" onClick={signInWithGoogle} disabled={busy}>
               <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
                 <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
@@ -270,7 +261,6 @@ export function AuthForm() {
               <span>{mode === "sign-in" ? "Sign in with Google" : "Sign up with Google"}</span>
             </button>
 
-            {/* Account switcher */}
             <p className="auth-switch">
               {mode === "sign-in" ? "New to FitBuzz?" : "Already have an account?"}{" "}
               <button className="auth-switch-button" type="button" onClick={() => changeMode(mode === "sign-in" ? "sign-up" : "sign-in")}>
@@ -278,7 +268,6 @@ export function AuthForm() {
               </button>
             </p>
 
-            {/* Pricing teaser micro-card */}
             <div className="auth-pricing-teaser">
               <div className="auth-pricing-left">
                 <div className="auth-pricing-icon"><Zap size={14} /></div>
@@ -293,7 +282,6 @@ export function AuthForm() {
               </a>
             </div>
 
-            {/* Security badge */}
             <div className="auth-security-badge">
               <span className="auth-security-dot" />
               <span>End-to-end encrypted telemetry</span>
