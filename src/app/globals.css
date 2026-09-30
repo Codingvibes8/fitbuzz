@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
 @import "tailwindcss";
 
 :root {
@@ -1470,4 +1471,870 @@ h1 { margin-bottom: 7px; font-size: clamp(27px, 3vw, 34px); font-weight: 730; le
   .price-amount {
     font-size: 30px;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   KINETIC OBSIDIAN — Redesigned Landing & Auth
+   Dark performance theme with volt lime accents
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --obsidian: #121413;
+  --obsidian-deep: #0d0f0e;
+  --surface-1: #1a1c1b;
+  --surface-2: #1e201f;
+  --surface-3: #282a29;
+  --surface-4: #333534;
+  --surface-bright: #383a38;
+  --on-surface: #e2e3e0;
+  --on-surface-variant: #c6c9af;
+  --on-surface-muted: #8f937b;
+  --volt: #d4f648;
+  --volt-container: #cff143;
+  --volt-dim: #b3d424;
+  --emerald: #4edea3;
+  --emerald-container: #00a572;
+  --mint: #6bff8f;
+  --outline: #8f937b;
+  --outline-variant: #454935;
+  --error: #ffb4ab;
+  --error-container: #93000a;
+  --glow-volt: rgba(212, 246, 72, 0.15);
+  --glow-volt-strong: rgba(212, 246, 72, 0.28);
+  --glow-emerald: rgba(78, 222, 163, 0.12);
+  --font-display: "Space Grotesk", sans-serif;
+  --font-body: "Plus Jakarta Sans", sans-serif;
+}
+
+/* ── Landing Screen ── */
+.landing-screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--obsidian);
+  color: var(--on-surface);
+  font-family: var(--font-body);
+  overflow: hidden;
+}
+
+/* Ambient glow orbs */
+.landing-glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(80px);
+}
+.landing-glow-1 {
+  top: -120px;
+  right: -80px;
+  width: 400px;
+  height: 400px;
+  background: var(--glow-volt);
+  opacity: 0.5;
+}
+.landing-glow-2 {
+  bottom: -100px;
+  left: -60px;
+  width: 350px;
+  height: 350px;
+  background: var(--glow-emerald);
+  opacity: 0.35;
+}
+
+/* ── Landing Layout ── */
+.landing {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px 56px;
+}
+
+.landing-inner {
+  width: min(1060px, 100%);
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 64px;
+  align-items: start;
+}
+
+/* ── Landing Content (Left) ── */
+.landing-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-top: 20px;
+}
+
+.landing-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.landing-brand-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  color: var(--obsidian);
+  background: var(--volt);
+  border-radius: 10px;
+}
+
+.landing-brand-name {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--on-surface);
+}
+
+.landing-brand-dot {
+  color: var(--volt);
+}
+
+.landing-headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(32px, 4vw, 44px);
+  font-weight: 700;
+  letter-spacing: -1.2px;
+  line-height: 1.08;
+  color: var(--on-surface);
+}
+
+.landing-headline-accent {
+  color: var(--volt);
+}
+
+.landing-description {
+  margin: 0;
+  color: var(--on-surface-variant);
+  font-size: 15px;
+  line-height: 1.65;
+  max-width: 480px;
+}
+
+/* ── Landing Features ── */
+.landing-features {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.landing-feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--on-surface);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.landing-feature-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  color: var(--volt);
+  background: rgba(212, 246, 72, 0.1);
+  border: 1px solid rgba(212, 246, 72, 0.15);
+  border-radius: 8px;
+  flex: 0 0 auto;
+}
+
+/* ── Landing Pricing ── */
+.landing-pricing {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 4px;
+  padding: 18px 22px;
+  background: var(--surface-1);
+  border: 1px solid var(--outline-variant);
+  border-radius: 12px;
+}
+
+.landing-price-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.landing-price-amount {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--on-surface);
+}
+
+.landing-price-label {
+  color: var(--on-surface-muted);
+  font-size: 11px;
+}
+
+.landing-price-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--outline-variant);
+}
+
+/* ── Auth Card (Right) ── */
+.auth-card {
+  position: sticky;
+  top: 24px;
+  width: 100%;
+  padding: 32px 28px 24px;
+  background: var(--surface-2);
+  border: 1px solid var(--outline-variant);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  overflow: hidden;
+}
+
+.auth-card-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(212, 246, 72, 0.3), transparent);
+}
+
+/* ── Auth Card Header ── */
+.auth-card-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.auth-brand-emblem {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  color: var(--volt);
+  background: rgba(212, 246, 72, 0.12);
+  border: 1px solid rgba(212, 246, 72, 0.15);
+  border-radius: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 16px rgba(212, 246, 72, 0.08);
+}
+
+.auth-brand-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.auth-brand-name {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--on-surface);
+}
+
+.auth-brand-pulse {
+  width: 6px;
+  height: 6px;
+  background: var(--emerald);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(78, 222, 163, 0.5);
+}
+
+.auth-eyebrow-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--surface-3);
+  border: 1px solid var(--outline-variant);
+  border-radius: 999px;
+}
+
+.auth-eyebrow-dot {
+  width: 5px;
+  height: 5px;
+  background: var(--volt);
+  border-radius: 50%;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.auth-eyebrow-pill span:last-child {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Auth Welcome ── */
+.auth-welcome {
+  margin-bottom: 20px;
+}
+
+.auth-welcome h1 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.8px;
+  color: var(--on-surface);
+}
+
+.auth-welcome p {
+  margin: 0;
+  color: var(--on-surface-variant);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ── Auth Form ── */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-fields {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-field label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--on-surface);
+}
+
+.auth-field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.auth-forgot-link {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--emerald);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.auth-forgot-link:hover {
+  color: var(--volt);
+}
+
+.auth-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--surface-3);
+  border: 1px solid var(--outline-variant);
+  border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.auth-input-wrap:focus-within {
+  border-color: var(--volt);
+  box-shadow: 0 0 0 3px rgba(212, 246, 72, 0.12);
+}
+
+.auth-input-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--on-surface-muted);
+  pointer-events: none;
+}
+
+.auth-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px 0 38px;
+  color: var(--on-surface);
+  background: transparent;
+  border: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  outline: none;
+}
+
+.auth-input::placeholder {
+  color: var(--on-surface-muted);
+  opacity: 0.5;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  right: 8px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: var(--on-surface-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.auth-password-toggle:hover {
+  color: var(--on-surface);
+}
+
+/* ── Auth Messages ── */
+.auth-message {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--emerald);
+}
+
+.auth-message.error {
+  color: var(--error);
+}
+
+/* ── Auth Submit Button ── */
+.auth-submit {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 0 20px;
+  color: var(--obsidian);
+  background: var(--volt);
+  border: 0;
+  border-radius: 10px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  box-shadow: 0 4px 20px rgba(212, 246, 72, 0.15);
+}
+
+.auth-submit:hover:not(:disabled) {
+  background: #e0ff5c;
+  box-shadow: 0 6px 28px rgba(212, 246, 72, 0.25);
+  transform: translateY(-1px);
+}
+
+.auth-submit:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.auth-submit:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.auth-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(18, 20, 19, 0.3);
+  border-top-color: var(--obsidian);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Auth Divider ── */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.auth-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--outline-variant);
+}
+
+.auth-divider-text {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--on-surface-muted);
+}
+
+/* ── Google Button ── */
+.google-button {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 16px;
+  color: var(--on-surface);
+  background: var(--surface-3);
+  border: 1px solid var(--outline-variant);
+  border-radius: 10px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.google-button:hover:not(:disabled) {
+  background: var(--surface-4);
+  border-color: var(--outline);
+}
+
+.google-button:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.google-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+/* ── Auth Switch ── */
+.auth-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 18px 0 0;
+  color: var(--on-surface-muted);
+  font-size: 12px;
+}
+
+.auth-switch-button {
+  padding: 0;
+  color: var(--volt);
+  background: transparent;
+  border: 0;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.auth-switch-button:hover {
+  color: #e0ff5c;
+  text-decoration: underline;
+}
+
+/* ── Auth Pricing Teaser ── */
+.auth-pricing-teaser {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding: 14px 16px;
+  background: var(--surface-1);
+  border: 1px solid var(--outline-variant);
+  border-radius: 10px;
+}
+
+.auth-pricing-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.auth-pricing-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  color: var(--emerald);
+  background: rgba(78, 222, 163, 0.12);
+  border-radius: 8px;
+  flex: 0 0 auto;
+}
+
+.auth-pricing-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.auth-pricing-title {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--on-surface);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.auth-pricing-sub {
+  font-size: 11px;
+  color: var(--on-surface-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.auth-pricing-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  color: var(--emerald);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: color 0.15s ease;
+  flex: 0 0 auto;
+}
+
+.auth-pricing-link:hover {
+  color: var(--volt);
+}
+
+/* ── Auth Security Badge ── */
+.auth-security-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--outline-variant);
+}
+
+.auth-security-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--emerald);
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(78, 222, 163, 0.4);
+}
+
+.auth-security-badge span:last-child {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--on-surface-muted);
+}
+
+/* ── Responsive: Tablet ── */
+@media (max-width: 900px) {
+  .landing-inner {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .landing-content {
+    max-width: 480px;
+    margin: 0 auto;
+    text-align: center;
+    padding-top: 0;
+  }
+
+  .landing-brand {
+    justify-content: center;
+  }
+
+  .landing-features {
+    display: none;
+  }
+
+  .landing-pricing {
+    justify-content: center;
+    padding: 16px 18px;
+  }
+
+  .landing-price-divider {
+    height: 22px;
+  }
+
+  .auth-card {
+    position: static;
+    margin: 0 auto;
+  }
+}
+
+/* ── Responsive: Mobile ── */
+@media (max-width: 480px) {
+  .landing {
+    padding: 32px 16px 40px;
+  }
+
+  .landing-inner {
+    gap: 28px;
+  }
+
+  .landing-headline {
+    font-size: 30px;
+  }
+
+  .landing-description {
+    font-size: 14px;
+  }
+
+  .landing-pricing {
+    flex-wrap: wrap;
+    gap: 10px 16px;
+  }
+
+  .landing-price-divider {
+    display: none;
+  }
+
+  .auth-card {
+    padding: 24px 20px 20px;
+  }
+
+  .auth-welcome h1 {
+    font-size: 24px;
+  }
+}
+
+/* ── Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .auth-eyebrow-dot {
+    animation: none;
+  }
+  .auth-spinner {
+    animation: none;
+  }
+}
+
+/* ── Auth Screen (loading & config states) ── */
+.auth-screen {
+  display: flex;
+  min-height: 100dvh;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--obsidian);
+  color: var(--on-surface);
+  font-family: var(--font-body);
+}
+
+.auth-screen .auth-description {
+  color: var(--on-surface-variant);
+  font-size: 14px;
+}
+
+.auth-config {
+  max-width: 440px;
+  text-align: center;
+}
+
+.auth-config .auth-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.auth-config .brand-mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  color: var(--obsidian);
+  background: var(--volt);
+  border-radius: 10px;
+}
+
+.auth-config .brand-name {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--on-surface);
+}
+
+.auth-config .brand-name span {
+  color: var(--volt);
+}
+
+.auth-config .eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  color: var(--on-surface-muted);
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth-config .eyebrow-mark {
+  width: 6px;
+  height: 6px;
+  background: var(--volt);
+  border-radius: 50%;
+}
+
+.auth-config h1 {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  color: var(--on-surface);
+}
+
+.auth-config .auth-description {
+  color: var(--on-surface-variant);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.auth-config code {
+  padding: 2px 6px;
+  color: var(--volt);
+  background: var(--surface-3);
+  border-radius: 4px;
+  font-size: 12px;
 }

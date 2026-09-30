@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, TrendingUp, Zap, CreditCard } from "lucide-react";
+import { Activity, ArrowRight, CreditCard, Lock, Mail, TrendingUp, Zap } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -9,6 +9,7 @@ export function AuthForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -73,17 +74,30 @@ export function AuthForm() {
 
   return (
     <main className="landing-screen">
-      {/* Landing section — shown only when user is not signed in */}
+      {/* Ambient glow orbs */}
+      <div className="landing-glow landing-glow-1" />
+      <div className="landing-glow landing-glow-2" />
+
       <section className="landing">
         <div className="landing-inner">
+          {/* Left — Brand & Value Prop */}
           <div className="landing-content">
-            <div className="landing-eyebrow"><span className="eyebrow-mark" />Workout tracker</div>
-            <h1>Track every session. Build a rhythm that lasts.</h1>
+            <div className="landing-brand">
+              <span className="landing-brand-icon"><Activity size={20} strokeWidth={2.5} /></span>
+              <span className="landing-brand-name">fitbuzz<span className="landing-brand-dot">.</span></span>
+            </div>
+
+            <h1 className="landing-headline">
+              Track every session.<br />
+              <span className="landing-headline-accent">Build a rhythm</span> that lasts.
+            </h1>
+
             <p className="landing-description">
               Log your workouts, watch your consistency grow, and spot the habits
               that move you forward. Free to start — upgrade when you want deeper
               insight and AI-guided plans.
             </p>
+
             <div className="landing-features" role="list">
               <div className="landing-feature" role="listitem">
                 <span className="landing-feature-icon"><Activity size={15} strokeWidth={2} /></span>
@@ -102,6 +116,7 @@ export function AuthForm() {
                 <span>Pro and Elite plans add AI plans, analytics, and coach features</span>
               </div>
             </div>
+
             <div className="landing-pricing">
               <div className="landing-price-item">
                 <span className="landing-price-amount">Free</span>
@@ -120,28 +135,131 @@ export function AuthForm() {
             </div>
           </div>
 
+          {/* Right — Auth Card */}
           <section className="auth-card" aria-labelledby="auth-title">
-            <div className="auth-brand"><span className="brand-mark"><Activity size={18} strokeWidth={2.5} /></span><span className="brand-name">fitbuzz<span>.</span></span></div>
-            <p className="eyebrow"><span className="eyebrow-mark" />Your training space</p>
-            <h1 id="auth-title">{mode === "sign-in" ? "Welcome back" : "Create your account"}</h1>
-            <p className="auth-description">{mode === "sign-in" ? "Sign in to pick up where your training left off." : "Save your workouts and build a rhythm that lasts."}</p>
-            <form onSubmit={submit}>
-              <div className="auth-fields">
-                {mode === "sign-up" && <label className="form-field"><span className="form-label">Name</span><input className="form-input" name="displayName" autoComplete="name" maxLength={80} /></label>}
-                <label className="form-field"><span className="form-label">Email</span><input className="form-input" name="email" type="email" autoComplete="email" required /></label>
-                <label className="form-field"><span className="form-label">Password</span><input className="form-input" name="password" type="password" autoComplete={mode === "sign-in" ? "current-password" : "new-password"} minLength={mode === "sign-up" ? 8 : undefined} required /></label>
+            {/* Card top highlight strip */}
+            <div className="auth-card-highlight" />
+
+            {/* Brand header */}
+            <div className="auth-card-header">
+              <div className="auth-brand-emblem">
+                <Activity size={22} strokeWidth={2.5} />
               </div>
+              <div className="auth-brand-wordmark">
+                <span className="auth-brand-name">fitbuzz</span>
+                <span className="auth-brand-pulse" />
+              </div>
+              <div className="auth-eyebrow-pill">
+                <span className="auth-eyebrow-dot" />
+                <span>Your training space</span>
+              </div>
+            </div>
+
+            {/* Welcome copy */}
+            <div className="auth-welcome">
+              <h1 id="auth-title">{mode === "sign-in" ? "Welcome back" : "Create your account"}</h1>
+              <p>{mode === "sign-in" ? "Sign in to pick up where your training left off." : "Save your workouts and build a rhythm that lasts."}</p>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={submit} className="auth-form">
+              <div className="auth-fields">
+                {mode === "sign-up" && (
+                  <div className="auth-field">
+                    <label htmlFor="displayName">Name</label>
+                    <div className="auth-input-wrap">
+                      <Mail size={15} className="auth-input-icon" />
+                      <input
+                        id="displayName"
+                        name="displayName"
+                        autoComplete="name"
+                        maxLength={80}
+                        placeholder="Your name"
+                        className="auth-input"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="auth-field">
+                  <label htmlFor="email">Email</label>
+                  <div className="auth-input-wrap">
+                    <Mail size={15} className="auth-input-icon" />
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      placeholder="athlete@domain.com"
+                      className="auth-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="auth-field">
+                  <div className="auth-field-label-row">
+                    <label htmlFor="password">Password</label>
+                    {mode === "sign-in" && (
+                      <a href="#" className="auth-forgot-link" onClick={(e) => e.preventDefault()}>
+                        Forgot password?
+                      </a>
+                    )}
+                  </div>
+                  <div className="auth-input-wrap">
+                    <Lock size={15} className="auth-input-icon" />
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
+                      minLength={mode === "sign-up" ? 8 : undefined}
+                      required
+                      placeholder="••••••••••••"
+                      className="auth-input"
+                    />
+                    <button
+                      type="button"
+                      className="auth-password-toggle"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {error && <p className="auth-message error" role="alert">{error}</p>}
               {notice && <p className="auth-message" role="status">{notice}</p>}
-              <button className="primary-button auth-submit" type="submit" disabled={busy}>{busy ? "Please wait..." : mode === "sign-in" ? "Sign in" : "Create account"}</button>
+
+              <button className="auth-submit" type="submit" disabled={busy}>
+                {busy ? (
+                  <>
+                    <span className="auth-spinner" />
+                    <span>Connecting...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{mode === "sign-in" ? "Sign in" : "Create account"}</span>
+                    <ArrowRight size={16} strokeWidth={2.5} />
+                  </>
+                )}
+              </button>
             </form>
 
+            {/* Divider */}
             <div className="auth-divider">
               <span className="auth-divider-line" />
               <span className="auth-divider-text">or</span>
               <span className="auth-divider-line" />
             </div>
 
+            {/* Google SSO */}
             <button className="google-button" type="button" onClick={signInWithGoogle} disabled={busy}>
               <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
                 <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
@@ -152,10 +270,34 @@ export function AuthForm() {
               <span>{mode === "sign-in" ? "Sign in with Google" : "Sign up with Google"}</span>
             </button>
 
-            <p className="auth-switch">{mode === "sign-in" ? "New to FitBuzz?" : "Already have an account?"} <button className="text-button" type="button" onClick={() => changeMode(mode === "sign-in" ? "sign-up" : "sign-in")}>{mode === "sign-in" ? "Create an account" : "Sign in"}</button></p>
-            <p className="auth-pricing-note">
-              <a href="/pricing">View plans</a> — Free tier includes core tracking.
+            {/* Account switcher */}
+            <p className="auth-switch">
+              {mode === "sign-in" ? "New to FitBuzz?" : "Already have an account?"}{" "}
+              <button className="auth-switch-button" type="button" onClick={() => changeMode(mode === "sign-in" ? "sign-up" : "sign-in")}>
+                {mode === "sign-in" ? "Create an account" : "Sign in"}
+              </button>
             </p>
+
+            {/* Pricing teaser micro-card */}
+            <div className="auth-pricing-teaser">
+              <div className="auth-pricing-left">
+                <div className="auth-pricing-icon"><Zap size={14} /></div>
+                <div className="auth-pricing-copy">
+                  <span className="auth-pricing-title">Free core tracking</span>
+                  <span className="auth-pricing-sub">Upgrades available for AI plans</span>
+                </div>
+              </div>
+              <a href="/pricing" className="auth-pricing-link">
+                <span>Plans</span>
+                <ArrowRight size={13} />
+              </a>
+            </div>
+
+            {/* Security badge */}
+            <div className="auth-security-badge">
+              <span className="auth-security-dot" />
+              <span>End-to-end encrypted telemetry</span>
+            </div>
           </section>
         </div>
       </section>
