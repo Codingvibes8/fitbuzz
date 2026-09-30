@@ -134,7 +134,7 @@ interface CounterProps {
 }
 
 export function Counter({ value, duration = 800, delay = 0, formatter, className }: CounterProps) {
-  const [displayValue, setDisplayValue] = useState(0);
+  const [displayValue, setDisplayValue] = useState<string | number>(0);
   const [started, setStarted] = useState(false);
 
   useEffect(() => {
