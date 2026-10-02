@@ -79,6 +79,12 @@ const protectedRoutes: Record<string, string[]> = {
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  // Bypass proxy for auth-related routes to avoid interfering with Supabase auth flows
+  if (shouldBypass(pathname)) {
+    return NextResponse.next({ request });
+  }
+
   const clientId = getClientIdentifier(request);
   const rateLimitConfig = getRateLimitConfig(pathname);
   const rateLimitKey = `${pathname}:${clientId}`;
@@ -203,3 +209,14 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
+
+// Routes that should bypass the proxy entirely (auth flows, Supabase callbacks)
+const BYPASS_PATTERNS = [
+  /^\/auth\//,
+  /^\/api\/auth\//,
+  /^\/pricing$/,
+];
+
+function shouldBypass(pathname: string): boolean {
+  return BYPASS_PATTERNS.some((pattern) => pattern.test(pathname));
+}
