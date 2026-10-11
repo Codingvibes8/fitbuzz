@@ -50,7 +50,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' data: https://fonts.gstatic.com",
               "img-src 'self' data: https: blob:",
-              "connect-src 'self' https://dfbajezoqgdnhugvfjwk.supabase.co https://api.stripe.com https://*.sentry.io wss://*.sentry.io",
+              "connect-src 'self' https://*.supabase.co https://api.stripe.com https://*.sentry.io wss://*.sentry.io",
               "frame-src https://js.stripe.com https://hooks.stripe.com",
               "object-src 'none'",
               "base-uri 'self'",
