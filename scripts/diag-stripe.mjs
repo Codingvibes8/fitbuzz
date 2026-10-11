@@ -3,7 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import Stripe from "stripe";
 
-const envPath = path.resolve(process.cwd(), ".env.local");
+const candidates = [".env.local", ".env", ".env.development.local", ".env.development"];
+const envPath = candidates.map((f) => path.resolve(process.cwd(), f)).find((p) => fs.existsSync(p));
+console.log("Using env file:", envPath);
+if (!envPath) process.exit(1);
 const env = {};
 for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
   const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
